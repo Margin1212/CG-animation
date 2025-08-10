@@ -8,7 +8,7 @@ class testsss extends JPanel{
 
         JFrame f = new JFrame();
         f.add(m);
-        f.setTitle("hoohoo");
+        f.setTitle("hoohoo-1");
         f.setSize(600,600);
         f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         f.setVisible(true);
