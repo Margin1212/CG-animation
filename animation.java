@@ -34,25 +34,25 @@ class Lab_5 extends JPanel implements Runnable {
         g2.fillRect(0, 0, 600, 600);       //  |
 
         g2.setColor(Color.BLACK);
-        g2.translate(circleMove, 0);
-        g2.drawOval(0, 0, 100, 100);
-        g2.translate(-circleMove, 0);
+        g2.translate(circleMove, 0);                     //  |
+        g2.drawOval(0, 0, 100, 100);       //  |
+        g2.translate(-circleMove, 0);                    //  |
 
         
-        g2.rotate(squareRotate, 300, 300);
-        g2.drawRect(200, 200, 200, 200);
-        g2.rotate(-squareRotate, 300, 300);
+        g2.rotate(squareRotate, 300, 300);              //  |
+        g2.drawRect(200, 200, 200, 200);   //  |
+        g2.rotate(-squareRotate, 300, 300);             //  |
 
-        g2.setColor(Color.RED);
-        g2.translate(squareMove+20, -squareMove);
-        g2.drawRect(0, 470, 100, 100);
-        g2.translate(-squareMove+20, squareMove);
+        g2.setColor(Color.RED);     
+        g2.translate(squareMove+20, -squareMove);           //  |
+        g2.drawRect(0, 470, 100, 100);     //  |
+        g2.translate(-squareMove+20, squareMove);           //  |
 
     }
 
-    public void run() {
-        double lastTime = System.currentTimeMillis();
-        double currentTime, elapsedTime;
+    public void run() {                                     //  |  อันนี้จำเป็น คือให้มันรันอนิเมชั่น
+        double lastTime = System.currentTimeMillis();       //  |
+        double currentTime, elapsedTime;                    //  |
 
         while (true) {
             currentTime = System.currentTimeMillis();
@@ -74,7 +74,7 @@ class Lab_5 extends JPanel implements Runnable {
             squareRotate += 0.5 * elapsedTime / 1000.0;
             millisecound += elapsedTime;
             // Display
-            repaint();
+            repaint();    //เห็นป่าว
         }
     }
 }
