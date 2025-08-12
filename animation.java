@@ -60,21 +60,21 @@ class Lab_5 extends JPanel implements Runnable {
             lastTime = currentTime;
 
             if(switchDirection) {
-                circleMove -= 50.0 * elapsedTime / 100.0; 
-            }else circleMove += 50.0 * elapsedTime / 1000.0;//to the right
+                circleMove -= 50.0 * elapsedTime / 100.0; // to left                |อันนี้เอาไว้เลือกทิศทางกับความเร็ว
+            }else circleMove += 50.0 * elapsedTime / 1000.0;//to the right          |
 
-            if (circleMove >= 500.0 || (switchDirection && circleMove < 0)) {
-                switchDirection = !switchDirection; // Switch direction back
+            if (circleMove >= 500.0 || (switchDirection && circleMove < 0)) {       //  | อันนี้เอาไว้ใส่เงื่อนไขว่าถ้า   ให้   แล้วแต่
+                switchDirection = !switchDirection; // Switch direction back        //  |
             }
             //start at 3 seconds
             if(millisecound >= 3000) {
-                if (squareMove >= 470.0 && millisecound > 3000){ // Reset square position
-                }else squareMove += 100 * elapsedTime / 1000.0;
+                if (squareMove >= 470.0 && millisecound > 3000){ //Reset square position    //  |เงื่อไข
+                }else squareMove += 100 * elapsedTime / 1000.0;                             //  |ให้เลื่อน
             }
-            squareRotate += 0.5 * elapsedTime / 1000.0;
-            millisecound += elapsedTime;
+            squareRotate += 0.5 * elapsedTime / 1000.0;                                     //  | อันนี้หมุน
+            millisecound += elapsedTime;                                                    //  | ไว้บวกเวลา
             // Display
-            repaint();    //เห็นป่าว
+            repaint();                                                                      //  | อันนี้เอาไว้วาดภาพใหม่
         }
     }
 }
