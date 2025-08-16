@@ -18,18 +18,18 @@ class testsss extends JPanel{
         f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         f.setVisible(true);
 
-        new Timer(16, e -> {
-            m.offsetX += m.direction * 2; // ขยับทีละ 2 px
+        // new Timer(16, e -> {
+        //     m.offsetX += m.direction * 2; // ขยับทีละ 2 px
 
-            // ถ้าชนขอบ 600 หรือ 0 ให้สลับทิศ
-            if (m.offsetX >= 600) {
-                m.direction = -1;
-            } else if (m.offsetX <= 0) {
-                m.direction = 1;
-            }
+        //     // ถ้าชนขอบ 600 หรือ 0 ให้สลับทิศ
+        //     if (m.offsetX >= 600) {
+        //         m.direction = -1;
+        //     } else if (m.offsetX <= 0) {
+        //         m.direction = 1;
+        //     }
 
-            m.repaint();
-        }).start();
+        //     m.repaint();
+        // }).start();
     }
 
 
