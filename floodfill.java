@@ -17,19 +17,19 @@ class floodfill extends JPanel{
         f.setVisible(true);
     }
     public void paintComponent(Graphics g) {
-        g.setColor(Color.red);
-        g.fillRect(100, 500,3,3);
-        g.fillRect(200, 200,3,3);
-        g.fillRect(500, 200,3,3);
-        g.fillRect(550, 500,3,3);
+        // g.setColor(Color.red);
+        // g.fillRect(100, 500,3,3);
+        // g.fillRect(200, 200,3,3);
+        // g.fillRect(500, 200,3,3);
+        // g.fillRect(550, 500,3,3);
         
 
-        g.setColor(Color.blue);
-        BezierCurve(g, 100, 500,
-        200, 200,
-        550, 500 ,
-        500, 200
-        );
+        // g.setColor(Color.blue);
+        // BezierCurve(g, 100, 500,
+        // 200, 200,
+        // 550, 500 ,
+        // 500, 200
+        // );
 
         // Polygon poly = new Polygon();
         //     poly.addPoint(150, 150);
@@ -43,22 +43,22 @@ class floodfill extends JPanel{
 
 
 
-        // buffer = new BufferedImage(601, 601, BufferedImage.TYPE_INT_ARGB);
-        //     Graphics2D g2 = buffer.createGraphics();
+        buffer = new BufferedImage(601, 601, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2 = buffer.createGraphics();
 
-        //     g2.setColor(Color.WHITE);
-        //     g2.fillRect(0, 0, 600, 600);
+            g2.setColor(Color.WHITE);
+            g2.fillRect(0, 0, 600, 600);
 
-        //     int xPoly[] = {150, 250, 325, 375, 400, 275, 100};
-        //     int yPoly[] = {150, 100, 125, 225, 325, 375, 300};
-        //     Polygon poly = new Polygon(xPoly, yPoly, xPoly.length);
+            int xPoly[] = {150, 250, 325, 375, 400, 275, 100};
+            int yPoly[] = {150, 100, 125, 225, 325, 375, 300};
+            Polygon poly = new Polygon(xPoly, yPoly, xPoly.length);
 
-        //     g2.setColor(Color.BLACK);   
-        //     g2.drawPolygon(poly);
+            g2.setColor(Color.BLACK);   
+            g2.drawPolygon(poly);
 
-        //     FloodFill(20, 150, Color.WHITE.getRGB(), Color.GREEN.getRGB());
+            FloodFill(20, 150, Color.WHITE.getRGB(), Color.GREEN.getRGB());
 
-        //     g.drawImage(buffer, 0, 0, null);
+            g.drawImage(buffer, 0, 0, null);
 
             
 
