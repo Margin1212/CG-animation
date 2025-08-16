@@ -226,6 +226,50 @@ class Frieren extends JPanel{
     }
     
 
+    public void Ellipse(Graphics g ,int xc , int yc ,int size, int a , int b){
+        int x ,y ,D ;
+        //Region 1
+        x= 0;
+        y= b;
+        D= Math.round(b*b - a*a*b + a*a/4);
+
+        while (b*b*x <= a*a*y){
+            plot (g, x +xc , y +yc,size);
+            plot (g, -x +xc , y +yc,size);
+            plot (g, x +xc , -y +yc,size);
+            plot (g, -x +xc , -y +yc,size);
+            
+            x++;
+            D = D + 2*b*b*x + b*b ;
+
+            if(D>=0){
+                y--;
+                D =D -2*a*a*y;
+            }
+        }
+
+        //Region 2
+        x= a;
+        y= 0;
+        D= Math.round(a*a - b*b*a + b*b/4);
+
+        while (b*b*x >= a*a*y){
+
+            plot (g, x +xc , y +yc,size);
+            plot (g, -x +xc , y +yc,size);
+            plot (g, x +xc , -y +yc,size);
+            plot (g, -x +xc , -y +yc,size);
+
+            y++;
+            D = D +2*a*a*y + a*a;
+
+            if(D>=0){
+                x--;
+                D = D - 2*b*b*x;
+            }
+        }
+    }
+    
     
     public void plot(Graphics g, int x, int y,int s) {
         // g.setColor(Color.black);
