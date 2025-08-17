@@ -1,316 +1,283 @@
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.Stack;
+import java.util.*;
 import javax.swing.*;
 
-class Final extends JPanel{
-    BufferedImage buffer;
+public class Final extends JPanel implements Runnable {
+    private BufferedImage sprite;       // เฉพาะตัวละคร (โปร่งใส)
+    private boolean spriteBuilt = false;
 
-    
+    // ตัวแปรอนิเมชัน
+    private double offsetX = 0;
+    private boolean goRight = true;
+
+    private static final int W = 600, H = 600;
+
+    // สี (มีอัลฟาใน getRGB อยู่แล้ว = ทึบแสง)
+    private static final int COL_OUT  = Color.BLACK.getRGB();
+    private static final int COL_BODY = new Color(255,230,140).getRGB();
+    private static final int COL_TAIL = new Color(173,216,230).getRGB();
+    private static final int COL_PINK = new Color(255,153,204).getRGB();
+
     public static void main(String[] args) {
         Final m = new Final();
-
-        JFrame f = new JFrame();
-        f.add(m);
-        f.setTitle("hoohoo-1");
-        f.setSize(600,600);
+        JFrame f = new JFrame("hoohoo-1");
         f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        f.setSize(W, H);
+        f.add(m);
         f.setVisible(true);
-
-        // new Timer(16, e -> {
-        //     m.offsetX += m.direction * 2; // ขยับทีละ 2 px
-
-        //     // ถ้าชนขอบ 600 หรือ 0 ให้สลับทิศ
-        //     if (m.offsetX >= 600) {
-        //         m.direction = -1;
-        //     } else if (m.offsetX <= 0) {
-        //         m.direction = 1;
-        //     }
-
-        //     m.repaint();
-        // }).start();
+        new Thread(m).start();
     }
 
     public Final() {
-        buffer = new BufferedImage(600,600,BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2 = buffer.createGraphics();
-        g2.setColor(Color.WHITE); 
-        g2.fillRect(0,0,600,600);
+        // ทำสไปรต์โปร่งใส
+        sprite = new BufferedImage(W, H, BufferedImage.TYPE_INT_ARGB);
     }
-
 
     @Override
-    public void paintComponent(Graphics g) {
+    protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        Graphics g2 = buffer.getGraphics();
-        
-        //g2.translate(offsetX, 0);
 
+        // 1) วาดพื้นหลังคงที่ (ไม่ขยับ)
+        Graphics2D g2 = (Graphics2D) g.create();
+        // ตัวอย่างพื้นหลังแบบง่าย: ท้องฟ้าขาว+พื้นสีอ่อน
+        g2.setColor(Color.WHITE);
+        g2.fillRect(0, 0, W, H);
+        g2.setColor(new Color(230, 245, 230));
+        g2.fillRect(0, 420, W, H - 420);
 
-        // g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        // g2.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        // g2.setColor(Color.BLACK);
-
-        CuteFieldScene bg =new CuteFieldScene();
-        //bg.drawMountains(g2);
-
-        
-        
-        head(g2);
-        face(g2);
-        
-        g.drawImage(buffer,0,0,null);
-    
-
-    }
-
-
-
-
-    private void head(Graphics g){
-        // --- หัว (Ellipse) ---
-        g.setColor(Color.BLACK);
-        drawEllipseMidpoint(g, 165+132, 170+125, 132, 125);
-        floodFill(250, 250, new Color(255,230,140));
-
-        // --- หาง (Ellipse) ---
-        g.setColor(Color.BLACK);
-        drawEllipseMidpoint(g, 275+105, 105+155, 105, 155); // (cx,cy,rx,ry)
-        floodFill(380, 260, new Color(173,216,230));
-
-        // Wool tail → ใช้ Bresenham Line
-        int tailCenterX = 380;
-        int tailCenterY = 260;
-        int tailRX = 85;
-        int tailRY = 135;
-        for (int i = -140; i <= 70; i += 15) {
-            double angle = Math.toRadians(i);
-            int x1 = (int)(tailCenterX + tailRX * Math.cos(angle));
-            int y1 = (int)(tailCenterY + tailRY * Math.sin(angle));
-            int x2 = (int)(tailCenterX + (tailRX + 20) * Math.cos(angle));
-            int y2 = (int)(tailCenterY + (tailRY + 20) * Math.sin(angle));
-            drawLineBresenham(g, x1, y1, x2, y2);
+        // 2) ถ้ายังไม่ประกอบสไปรต์ ให้สร้างครั้งเดียว
+        if (!spriteBuilt) {
+            Graphics gs = sprite.getGraphics();
+            buildSprite(gs);  // วาดตัวละครลงสไปรต์โปร่งใส
+            gs.dispose();
+            spriteBuilt = true;
         }
 
-        // --- ตัว (Ellipse) ---
-        drawEllipseMidpoint(g, 195+105, 275+90, 105, 90);
-        floodFill(280, 350, new Color(255,230,140));
-
-
-        
-
-        // --- แก้มซ้าย (Bezier curve + Line) ---
-        drawLineBresenham(g, 170, 275, 135, 275);
-        drawQuadBezier(g, 135, 275, 125, 315, 155, 350);
-        drawLineBresenham(g, 155, 350, 180, 340);
-        drawLineBresenham(g, 180, 340, 170, 275);
-
-        // --- แก้มขวา ---
-        drawLineBresenham(g, 425, 275, 460, 275);
-        drawQuadBezier(g, 460, 275, 465, 315, 445, 350);
-        drawLineBresenham(g, 445, 350, 420, 340);
-        drawLineBresenham(g, 420, 340, 425, 275);
-
-        // --- หูซ้าย ---
-        drawEllipseMidpoint(g, 175+45, 120+45, 45, 45);
-        floodFill(200, 150, new Color(255,230,140));
-
-        // --- หูขวา ---
-        drawEllipseMidpoint(g, 330+45, 120+45, 45, 45);
-        floodFill(200, 150, new Color(255,230,140));
-
-        // --- เส้นในหู (Bezier curves) ---
-        drawQuadBezier(g, 215,190, 215,180, 230,175);
-        drawQuadBezier(g, 230,175, 215,160, 220,140);
-        drawQuadBezier(g, 220,165, 210,165, 205,170);
-
-        drawQuadBezier(g, 370,190, 365,180, 350,175);
-        drawQuadBezier(g, 350,175, 365,160, 360,140);
-        drawQuadBezier(g, 360,165, 365,160, 380,170);
-
-        // --- มือซ้าย ---
-        drawLineBresenham(g,200,375,160,375);
-        drawQuadBezier(g,160,375,140,390,170,400);
-        drawLineBresenham(g,170,400,205,395);
-        drawLineBresenham(g,205,395,200,375);
-
-        // --- มือขวา ---
-        drawLineBresenham(g,375,355,370,385);
-        drawQuadBezier(g,370,385,360,405,390,395);
-        drawLineBresenham(g,390,395,405,360);
-        drawLineBresenham(g,405,360,375,355);
-
-        // --- ขาซ้าย ---
-        drawLineBresenham(g,250,440,250,470);
-        drawQuadBezier(g,250,470,260,480,280,470);
-        drawLineBresenham(g,280,470,280,450);
-        drawLineBresenham(g,280,450,250,440);
-
-        // --- ขาขวา ---
-        drawLineBresenham(g,310,450,310,470);
-        drawQuadBezier(g,310,470,320,480,340,470);
-        drawLineBresenham(g,340,470,340,445);
-        drawLineBresenham(g,340,445,310,450);
+        // 3) วาดสไปรต์ด้วยการ translate → ขยับเฉพาะตัวละคร
+        g2.translate(offsetX, 0);
+        g2.drawImage(sprite, 0, 0, null);
+        g2.dispose();
     }
 
-
-
-    private void face(Graphics g){
-        // --- ดวงตา (วงรี) ---
-        drawEllipseMidpoint(g, 225+20, 270+17, 20, 17); // ตาซ้าย
-        floodFill(240, 280, Color.BLACK);
-        drawEllipseMidpoint(g, 225+20, 272+12, 20, 12); // ตาซ้าย inner
-        floodFill(330, 280, Color.BLACK);
-        drawEllipseMidpoint(g, 315+20, 270+17, 20, 17); // ตาขวา
-        floodFill(330, 280, Color.BLACK);
-        drawEllipseMidpoint(g, 315+20, 272+12, 20, 12); // ตาขวา inner
-        floodFill(330, 280, Color.BLACK);
-
-        // --- ดวงตาสีฟ้า ---
-        drawEllipseMidpoint(g, 275+16, 270+16, 16, 16); 
-        floodFill(285, 280, new Color(173,216,230));
-
-        // --- แก้มชมพู ---
-        drawEllipseMidpoint(g, 185+25, 295+20, 25, 20);
-        floodFill(200, 310, new Color(255,153,204));
-        drawEllipseMidpoint(g, 345+25, 295+20, 25, 20);
-        floodFill(360, 310, new Color(255,153,204));
-
-        // --- ปาก ---
-        drawEllipseMidpoint(g, 288+2, 310+2, 2, 2); // จุดกลางปาก
-
-        // ปากโค้งซ้าย
-        drawQuadBezier(g, 290,315, 280,335, 265,320);
-
-        // ปากโค้งขวา
-        drawQuadBezier(g, 290,315, 300,335, 315,320);
-
-        // เส้นปากล่าง
-        drawQuadBezier(g, 283,340, 290,345, 298,340);
-
-        // --- ขนแก้มซ้าย ---
-        drawQuadBezier(g,170,275,145,270,135,275);
-        drawQuadBezier(g,170,300,155,295,135,305);
-        drawQuadBezier(g,170,320,150,320,140,330);
-        drawQuadBezier(g,180,340,165,340,155,350);
-
-        // --- ขนแก้มขวา ---
-        drawQuadBezier(g,425,275,450,270,460,275);
-        drawQuadBezier(g,425,300,440,295,460,305);
-        drawQuadBezier(g,425,320,445,320,455,330);
-        drawQuadBezier(g,420,340,435,340,445,350);
-    }
-
-
-
-
-
-
-
-
-
-
-    // Bresenham Line
-    private void drawLineBresenham(Graphics g, int x1, int y1, int x2, int y2) {
-        int dx = Math.abs(x2 - x1);
-        int dy = Math.abs(y2 - y1);
-        int sx = (x1 < x2) ? 1 : -1;
-        int sy = (y1 < y2) ? 1 : -1;
-        int err = dx - dy;
+    @Override
+    public void run() {
+        long last = System.currentTimeMillis();
+        double speed = 120; // px/s
+        int minX = -200, maxX = 200;
 
         while (true) {
-            g.drawLine(x1, y1, x1, y1); // pixel
+            long now = System.currentTimeMillis();
+            double dt = (now - last) / 1000.0;
+            last = now;
+
+            if (goRight) offsetX += speed * dt; else offsetX -= speed * dt;
+            if (offsetX >= maxX) { offsetX = maxX; goRight = false; }
+            if (offsetX <= minX) { offsetX = minX; goRight = true;  }
+
+            repaint();
+            try { Thread.sleep(16); } catch (InterruptedException ignored) {}
+        }
+    }
+
+    /* ===== สร้างสไปรต์ตัวละคร (โปร่งใส) ===== */
+    private void buildSprite(Graphics g) {
+        // อย่าเคลียร์เป็นสีขาว! ปล่อยให้โปร่งใส (ARGB = 0) จะทับพื้นหลังได้สวย
+        // วาดเส้น/ถมสีด้วยฟังก์ชัน rasterization ของคุณ (เหมือนเดิมทุกอย่าง)
+        drawTailDecorOnSprite();
+        headFilled();
+        faceFilled();
+    }
+
+    /* ====== วาดลง sprite โดยตรง: ใช้ setPixel(sprite,...) ====== */
+    private void setPixel(int x, int y, int rgb) {
+        if (x>=0 && y>=0 && x<W && y<H) sprite.setRGB(x, y, rgb);
+    }
+
+    private void drawLineBresenham(int x1, int y1, int x2, int y2, int rgb) {
+        int dx = Math.abs(x2 - x1), dy = Math.abs(y2 - y1);
+        int sx = x1 < x2 ? 1 : -1, sy = y1 < y2 ? 1 : -1, err = dx - dy;
+        while (true) {
+            setPixel(x1, y1, rgb);
             if (x1 == x2 && y1 == y2) break;
-            int e2 = 2 * err;
+            int e2 = err << 1;
             if (e2 > -dy) { err -= dy; x1 += sx; }
-            if (e2 < dx) { err += dx; y1 += sy; }
+            if (e2 <  dx) { err += dx; y1 += sy; }
         }
     }
 
-    // Midpoint Ellipse
-    private void drawEllipseMidpoint(Graphics g, int xc, int yc, int rx, int ry) {
+    private void drawHSpan(int x1, int x2, int y, int rgb) {
+        if (y < 0 || y >= H) return;
+        if (x1 > x2) { int t=x1; x1=x2; x2=t; }
+        x1 = Math.max(0, x1); x2 = Math.min(W-1, x2);
+        for (int x = x1; x <= x2; x++) setPixel(x, y, rgb);
+    }
+
+    private void fillEllipseMidpoint(int xc, int yc, int rx, int ry, int rgb) {
         int x = 0, y = ry;
-        double d1 = (ry*ry) - (rx*rx*ry) + (0.25*rx*rx);
-        int dx = 2 * ry * ry * x;
-        int dy = 2 * rx * rx * y;
-
+        long rx2 = 1L*rx*rx, ry2 = 1L*ry*ry;
+        long dx = 0, dy = 2*rx2*y;
+        long d1 = ry2 - rx2*ry + rx2/4;
         while (dx < dy) {
-            plot4(g, xc, yc, x, y);
-            if (d1 < 0) {
-                x++;
-                dx += 2 * ry * ry;
-                d1 += dx + (ry*ry);
-            } else {
-                x++; y--;
-                dx += 2 * ry * ry;
-                dy -= 2 * rx * rx;
-                d1 += dx - dy + (ry*ry);
-            }
+            drawHSpan(xc - x, xc + x, yc + y, rgb);
+            drawHSpan(xc - x, xc + x, yc - y, rgb);
+            if (d1 < 0) { x++; dx += 2*ry2; d1 += dx + ry2; }
+            else { x++; y--; dx += 2*ry2; dy -= 2*rx2; d1 += dx - dy + ry2; }
         }
-
-        double d2 = ((ry*ry) * ((x+0.5)*(x+0.5))) + ((rx*rx) * ((y-1)*(y-1))) - (rx*rx*ry*ry);
+        long d2 = (long)(ry2*(x+0.5)*(x+0.5) + rx2*(y-1)*(y-1) - rx2*ry2);
         while (y >= 0) {
-            plot4(g, xc, yc, x, y);
-            if (d2 > 0) {
-                y--;
-                dy -= 2 * rx * rx;
-                d2 += (rx*rx) - dy;
-            } else {
-                y--; x++;
-                dx += 2 * ry * ry;
-                dy -= 2 * rx * rx;
-                d2 += dx - dy + (rx*rx);
+            drawHSpan(xc - x, xc + x, yc + y, rgb);
+            drawHSpan(xc - x, xc + x, yc - y, rgb);
+            if (d2 > 0) { y--; dy -= 2*rx2; d2 += rx2 - dy; }
+            else { y--; x++; dx += 2*ry2; dy -= 2*rx2; d2 += dx - dy + rx2; }
+        }
+    }
+
+    private void drawQuadBezier(int x0,int y0,int x1,int y1,int x2,int y2,int rgb){
+        int px=x0, py=y0; int steps=100;
+        for (int i=1;i<=steps;i++){
+            double t=(double)i/steps, it=1-t;
+            int x=(int)Math.round(it*it*x0 + 2*it*t*x1 + t*t*x2);
+            int y=(int)Math.round(it*it*y0 + 2*it*t*y1 + t*t*y2);
+            drawLineBresenham(px, py, x, y, rgb);
+            px=x; py=y;
+        }
+    }
+
+    private java.util.List<Point> sampleQuadBezier(int x0,int y0,int x1,int y1,int x2,int y2,int steps){
+        java.util.List<Point> pts=new ArrayList<>(steps+1);
+        for(int i=0;i<=steps;i++){
+            double t=(double)i/steps, it=1-t;
+            int x=(int)Math.round(it*it*x0 + 2*it*t*x1 + t*t*x2);
+            int y=(int)Math.round(it*it*y0 + 2*it*t*y1 + t*t*y2);
+            if (pts.isEmpty() || pts.get(pts.size()-1).x!=x || pts.get(pts.size()-1).y!=y)
+                pts.add(new Point(x,y));
+        }
+        return pts;
+    }
+
+    private void fillPolygonScanline(int[] xs, int[] ys, int n, int rgb) {
+        int minY = ys[0], maxY = ys[0];
+        for (int i=1;i<n;i++){ if (ys[i]<minY) minY=ys[i]; if (ys[i]>maxY) maxY=ys[i]; }
+        for (int y=minY; y<=maxY; y++){
+            ArrayList<Integer> xsList=new ArrayList<>();
+            int j=n-1;
+            for(int i=0;i<n;i++){
+                int yi=ys[i], yj=ys[j], xi=xs[i], xj=xs[j];
+                boolean cross=(yi<y && yj>=y) || (yj<y && yi>=y);
+                if (cross && yj!=yi){
+                    int x=xi + (int)Math.floor((double)(y-yi)*(xj-xi)/(double)(yj-yi));
+                    xsList.add(x);
+                }
+                j=i;
             }
+            Collections.sort(xsList);
+            for (int k=0;k+1<xsList.size();k+=2)
+                drawHSpan(xsList.get(k), xsList.get(k+1), y, rgb);
         }
     }
 
-    private void plot4(Graphics g, int xc, int yc, int x, int y) {
-        g.drawLine(xc+x, yc+y, xc+x, yc+y);
-        g.drawLine(xc-x, yc+y, xc-x, yc+y);
-        g.drawLine(xc+x, yc-y, xc+x, yc-y);
-        g.drawLine(xc-x, yc-y, xc-x, yc-y);
-    }
-
-    // Quadratic Bezier
-    private void drawQuadBezier(Graphics g, int x0, int y0, int x1, int y1, int x2, int y2) {
-        int prevX = x0, prevY = y0;
-        for (double t = 0; t <= 1; t += 0.01) {
-            int x = (int)((1-t)*(1-t)*x0 + 2*(1-t)*t*x1 + t*t*x2);
-            int y = (int)((1-t)*(1-t)*y0 + 2*(1-t)*t*y1 + t*t*y2);
-            drawLineBresenham(g, prevX, prevY, x, y);
-            prevX = x; prevY = y;
+    /* ===== วาดองค์ประกอบของตัวละครลง sprite ===== */
+    private void drawTailDecorOnSprite() {
+        int cx=380, cy=260, rx=85, ry=135;
+        for (int i=-140;i<=70;i+=15){
+            double a=Math.toRadians(i);
+            int x1=(int)(cx + rx*Math.cos(a));
+            int y1=(int)(cy + ry*Math.sin(a));
+            int x2=(int)(cx + (rx+20)*Math.cos(a));
+            int y2=(int)(cy + (ry+20)*Math.sin(a));
+            drawLineBresenham(x1,y1,x2,y2,COL_OUT);
         }
     }
 
-    // Flood Fill (4-direction)
-    private void floodFill(int x, int y, Color fillColor) {
-        int target = buffer.getRGB(x,y);
-        int replacement = fillColor.getRGB();
-        if (target == replacement) return;
+    private void headFilled(){
+        // หาง/ตัว/หัว/หู
+        fillEllipseMidpoint(275+105, 105+155, 105, 155, COL_TAIL);
+        fillEllipseMidpoint(195+105, 275+90, 105, 90, COL_BODY);
+        fillEllipseMidpoint(165+132, 170+125, 132, 125, COL_BODY);
+        fillEllipseMidpoint(175+45, 120+45, 45, 45, COL_BODY);
+        fillEllipseMidpoint(330+45, 120+45, 45, 45, COL_BODY);
 
-        int w = buffer.getWidth(), h = buffer.getHeight();
-        Stack<Point> stack = new Stack<>();
-        stack.push(new Point(x,y));
-
-        while (!stack.isEmpty()) {
-            Point p = stack.pop();
-            if (p.x < 0 || p.y < 0 || p.x >= w || p.y >= h) continue;
-            if (buffer.getRGB(p.x,p.y) != target) continue;
-            buffer.setRGB(p.x,p.y,replacement);
-            stack.push(new Point(p.x+1,p.y));
-            stack.push(new Point(p.x-1,p.y));
-            stack.push(new Point(p.x,p.y+1));
-            stack.push(new Point(p.x,p.y-1));
-        }
+        // มือ/ขา (โพลีจาก bezier)
+        fillHandLeft(COL_BODY);
+        fillHandRight(COL_BODY);
+        fillLegLeft(COL_BODY);
+        fillLegRight(COL_BODY);
     }
 
+    private void faceFilled(){
+        // ขนแก้ม (เส้น)
+        drawCheekHairs();
 
+        // ตา
+        fillEllipseMidpoint(225+20, 270+17, 20, 17, COL_OUT);
+        fillEllipseMidpoint(315+20, 270+17, 20, 17, COL_OUT);
+        fillEllipseMidpoint(225+20, 272+12, 20, 12, COL_OUT);
+        fillEllipseMidpoint(315+20, 272+12, 20, 12, COL_OUT);
 
-    
-    
+        // ตาฟ้า
+        fillEllipseMidpoint(275+16, 270+16, 16, 16, COL_TAIL);
 
-    
+        // แก้มชมพู
+        fillEllipseMidpoint(185+25, 295+20, 25, 20, COL_PINK);
+        fillEllipseMidpoint(345+25, 295+20, 25, 20, COL_PINK);
 
-    
+        // ปาก
+        fillEllipseMidpoint(288+2, 310+2, 2, 2, COL_OUT);
+        drawQuadBezier(290,315, 280,335, 265,320, COL_OUT);
+        drawQuadBezier(290,315, 300,335, 315,320, COL_OUT);
+        drawQuadBezier(283,340, 290,345, 298,340, COL_OUT);
+    }
 
+    private void fillHandLeft(int rgb){
+        java.util.List<Point> pts=new ArrayList<>();
+        pts.add(new Point(200,375));
+        pts.add(new Point(160,375));
+        pts.addAll(sampleQuadBezier(160,375, 140,390, 170,400, 40));
+        pts.add(new Point(205,395));
+        pts.add(new Point(200,375));
+        fillPolyFromPoints(pts, rgb);
+    }
+    private void fillHandRight(int rgb){
+        java.util.List<Point> pts=new ArrayList<>();
+        pts.add(new Point(375,355));
+        pts.add(new Point(370,385));
+        pts.addAll(sampleQuadBezier(370,385, 360,405, 390,395, 40));
+        pts.add(new Point(405,360));
+        pts.add(new Point(375,355));
+        fillPolyFromPoints(pts, rgb);
+    }
+    private void fillLegLeft(int rgb){
+        java.util.List<Point> pts=new ArrayList<>();
+        pts.add(new Point(250,440));
+        pts.add(new Point(250,470));
+        pts.addAll(sampleQuadBezier(250,470, 260,480, 280,470, 40));
+        pts.add(new Point(280,450));
+        pts.add(new Point(250,440));
+        fillPolyFromPoints(pts, rgb);
+    }
+    private void fillLegRight(int rgb){
+        java.util.List<Point> pts=new ArrayList<>();
+        pts.add(new Point(310,450));
+        pts.add(new Point(310,470));
+        pts.addAll(sampleQuadBezier(310,470, 320,480, 340,470, 40));
+        pts.add(new Point(340,445));
+        pts.add(new Point(310,450));
+        fillPolyFromPoints(pts, rgb);
+    }
+    private void drawCheekHairs(){
+        drawQuadBezier(170,275,145,270,135,275, COL_OUT);
+        drawQuadBezier(170,300,155,295,135,305, COL_OUT);
+        drawQuadBezier(170,320,150,320,140,330, COL_OUT);
+        drawQuadBezier(180,340,165,340,155,350, COL_OUT);
+        drawQuadBezier(425,275,450,270,460,275, COL_OUT);
+        drawQuadBezier(425,300,440,295,460,305, COL_OUT);
+        drawQuadBezier(425,320,445,320,455,330, COL_OUT);
+        drawQuadBezier(420,340,435,340,445,350, COL_OUT);
+    }
+    private void fillPolyFromPoints(java.util.List<Point> boundary, int rgb){
+        int n=boundary.size(); int[] xs=new int[n], ys=new int[n];
+        for(int i=0;i<n;i++){ xs[i]=boundary.get(i).x; ys[i]=boundary.get(i).y; }
+        fillPolygonScanline(xs, ys, n, rgb);
+    }
 }
