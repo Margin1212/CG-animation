@@ -7,6 +7,9 @@ public class Final extends JPanel implements Runnable {
     private BufferedImage sprite;       // เฉพาะตัวละคร (โปร่งใส)
     private boolean spriteBuilt = false;
 
+    private CuteFieldSceneColored bg = new CuteFieldSceneColored();
+
+
     // ตัวแปรอนิเมชัน
     private double offsetX = 0;
     private boolean goRight = true;
@@ -38,13 +41,19 @@ public class Final extends JPanel implements Runnable {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
+
+        
+
         // 1) วาดพื้นหลังคงที่ (ไม่ขยับ)
         Graphics2D g2 = (Graphics2D) g.create();
         // ตัวอย่างพื้นหลังแบบง่าย: ท้องฟ้าขาว+พื้นสีอ่อน
-        g2.setColor(Color.WHITE);
-        g2.fillRect(0, 0, W, H);
-        g2.setColor(new Color(230, 245, 230));
-        g2.fillRect(0, 420, W, H - 420);
+        // g2.setColor(Color.WHITE);
+        // g2.fillRect(0, 0, W, H);
+        // g2.setColor(new Color(230, 245, 230));
+        // g2.fillRect(0, 420, W, H - 420);
+
+        // วาดพื้นหลังจากคลาส CuteFieldSceneColored
+        g.drawImage(bg.getImage(), 0, 0, null);
 
         // 2) ถ้ายังไม่ประกอบสไปรต์ ให้สร้างครั้งเดียว
         if (!spriteBuilt) {

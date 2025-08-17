@@ -3,27 +3,31 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 
-public class CuteFieldSceneColored extends JPanel {
-
+public class CuteFieldSceneColored {   // << ไม่ต้อง extends JPanel แล้วก็ได้
     private BufferedImage canvas;
-
-    public static void main(String[] args) {
-        JFrame frame = new JFrame("Cute Field Scene Colored");
-        CuteFieldSceneColored panel = new CuteFieldSceneColored();
-        frame.add(panel);
-        frame.setSize(600, 600);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setVisible(true);
-    }
+    private boolean rendered = false;  // cache ไว้ เรนเดอร์ครั้งเดียวพอ
 
     public CuteFieldSceneColored() {
         canvas = new BufferedImage(600, 600, BufferedImage.TYPE_INT_RGB);
     }
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
+    /** ให้ Final เรียกใช้: คืนภาพพื้นหลัง */
+    public BufferedImage getImage() {
+        if (!rendered) {
+            renderToCanvas();
+            rendered = true;
+        }
+        return canvas;
+    }
 
+    /** ถ้าภายหลังอยากเปลี่ยนขนาด/บังคับวาดใหม่ เรียก method นี้ได้ */
+    public void rerender() {
+        renderToCanvas();
+        rendered = true;
+    }
+
+    // --------------------- วาดพื้นหลังลง canvas ---------------------
+    private void renderToCanvas() {
         // 1. Sky
         for (int y = 0; y < canvas.getHeight(); y++)
             for (int x = 0; x < canvas.getWidth(); x++)
@@ -40,23 +44,20 @@ public class CuteFieldSceneColored extends JPanel {
         drawGradientMountain(200, 350, 350, 150, 450, 150, 600, 350,
                 new Color(80,160,180), new Color(120,190,210));
 
-        // 4. Clouds with gradient
+        // 4. Clouds
         drawGradientCloud(120, 100, 20, new Color(255,255,255), new Color(200,230,255));
-        drawGradientCloud(150, 90, 25, new Color(255,255,255), new Color(200,230,255));
+        drawGradientCloud(150,  90, 25, new Color(255,255,255), new Color(200,230,255));
         drawGradientCloud(180, 100, 20, new Color(255,255,255), new Color(200,230,255));
 
-        drawGradientCloud(370, 80, 20, new Color(255,255,255), new Color(200,230,255));
-        drawGradientCloud(400, 70, 25, new Color(255,255,255), new Color(200,230,255));
-        drawGradientCloud(430, 80, 20, new Color(255,255,255), new Color(200,230,255));
-
-        g.drawImage(canvas, 0, 0, null);
+        drawGradientCloud(370,  80, 20, new Color(255,255,255), new Color(200,230,255));
+        drawGradientCloud(400,  70, 25, new Color(255,255,255), new Color(200,230,255));
+        drawGradientCloud(430,  80, 20, new Color(255,255,255), new Color(200,230,255));
     }
 
     // ---------------- Gradient Mountain using Bezier + Scanline ----------------
     private void drawGradientMountain(int x0, int y0, int x1, int y1,
                                       int x2, int y2, int x3, int y3,
                                       Color bottomColor, Color topColor) {
-        // Compute top edge using Bezier
         ArrayList<Point> topEdge = new ArrayList<>();
         for (double t = 0; t <= 1.0; t += 0.001) {
             int xt = (int)(Math.pow(1 - t, 3) * x0 +
@@ -70,12 +71,8 @@ public class CuteFieldSceneColored extends JPanel {
             topEdge.add(new Point(xt, yt));
         }
 
-        // Fill mountain with vertical scanline
-        int minY = y0, maxY = y0;
-        for (Point p : topEdge) {
-            if (p.y < minY) minY = p.y;
-            if (p.y > maxY) maxY = p.y;
-        }
+        int minY = y0;
+        for (Point p : topEdge) if (p.y < minY) minY = p.y;
 
         for (int yScan = minY; yScan <= y0; yScan++) {
             int leftX = Integer.MAX_VALUE;
@@ -91,14 +88,13 @@ public class CuteFieldSceneColored extends JPanel {
             double ratio = (double)(y0 - yScan) / (y0 - minY + 0.01);
             ratio = Math.min(Math.max(ratio, 0), 1);
             Color c = new Color(
-                    (int)(topColor.getRed() * ratio + bottomColor.getRed() * (1-ratio)),
+                    (int)(topColor.getRed()   * ratio + bottomColor.getRed()   * (1-ratio)),
                     (int)(topColor.getGreen() * ratio + bottomColor.getGreen() * (1-ratio)),
-                    (int)(topColor.getBlue() * ratio + bottomColor.getBlue() * (1-ratio))
+                    (int)(topColor.getBlue()  * ratio + bottomColor.getBlue()  * (1-ratio))
             );
 
-            for (int xFill = leftX; xFill <= rightX; xFill++) {
+            for (int xFill = leftX; xFill <= rightX; xFill++)
                 setPixel(xFill, yScan, c);
-            }
         }
     }
 
@@ -141,14 +137,13 @@ public class CuteFieldSceneColored extends JPanel {
             double ratio = (double)(yScan - minY) / (maxY - minY + 0.01);
             ratio = Math.min(Math.max(ratio, 0), 1);
             Color c = new Color(
-                    (int)(topColor.getRed() * (1 - ratio) + bottomColor.getRed() * ratio),
+                    (int)(topColor.getRed()   * (1 - ratio) + bottomColor.getRed()   * ratio),
                     (int)(topColor.getGreen() * (1 - ratio) + bottomColor.getGreen() * ratio),
-                    (int)(topColor.getBlue() * (1 - ratio) + bottomColor.getBlue() * ratio)
+                    (int)(topColor.getBlue()  * (1 - ratio) + bottomColor.getBlue()  * ratio)
             );
 
-            for (int xFill = leftX; xFill <= rightX; xFill++) {
+            for (int xFill = leftX; xFill <= rightX; xFill++)
                 setPixel(xFill, yScan, c);
-            }
         }
     }
 
