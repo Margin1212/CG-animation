@@ -36,7 +36,7 @@ public class CuteFieldScene extends JPanel {
     }
 
     // ---------------- PART 1 : MOUNTAINS ----------------
-    public void drawMountains(Graphics2D g2) {
+    private void drawMountains(Graphics2D g2) {
         g2.setColor(new Color(100, 180, 200));
         Path2D.Double mountain1 = new Path2D.Double();
         mountain1.moveTo(0, 350);
