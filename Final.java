@@ -8,11 +8,54 @@ public class Final extends JPanel implements Runnable {
     private boolean spriteBuilt = false;
 
     private CuteFieldSceneColored bg = new CuteFieldSceneColored();
+    private BlackBG blackBG = new BlackBG();
+    private WhiteBG whiteBG = new WhiteBG();
+
+    // คุมลำดับเหตุการณ์
+    // phase: 0 = slide-in 1s, 1 = blackout 1s, 2 = background ปกติ
+    private int phase = 0;
+    private long phaseStart = 0L;
+
+
+
+
+
+    // ระยะเวลา (ms)
+    private int SLIDE_DURATION_MS    = 2000; // เวลาตัวละครเลื่อนเข้ากลางจอ
+    private int BLACKOUT_DURATION_MS = 1000; // เวลาจอดำค้าง
+
+
+    // สลับ BG (BlackBG/WhiteBG) ครึ่งวิ/ครั้ง รวม 2 วินาที
+    private static final int ALT_TOTAL_MS = 2000;
+    private static final int ALT_SLOT_MS  = 500;
+
+
+
+    // จุดเริ่ม–จบ (แกน X)
+    private double START_X = -600;
+    private double END_X   = 0;
+
+    // (ทางเลือก) เปิด/ปิด easing (ทำให้นุ่มนวลขึ้น)
+    private boolean USE_EASING = true;
+
+    // ฟังก์ชัน easing
+    private double easeInOut(double t) {
+        // t อยู่ระหว่าง 0..1
+        return (t < 0.5) ? (2*t*t) : (1 - Math.pow(-2*t + 2, 2) / 2);
+    }
+
+
+
+
+
+
+    // ตำแหน่งตัวละคร (เลื่อนแกน X)
+    private double offsetX = -600; // เริ่มนอกจอซ้าย
 
 
     // ตัวแปรอนิเมชัน
-    private double offsetX = 0;
-    private boolean goRight = true;
+    //private double offsetX = 0;
+    //private boolean goRight = true;
 
     private static final int W = 600, H = 600;
 
@@ -35,59 +78,105 @@ public class Final extends JPanel implements Runnable {
     public Final() {
         // ทำสไปรต์โปร่งใส
         sprite = new BufferedImage(W, H, BufferedImage.TYPE_INT_ARGB);
+
+        phaseStart = System.currentTimeMillis();
+
     }
 
     @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
+protected void paintComponent(Graphics g) {
+    super.paintComponent(g);
 
+    long elapsed = System.currentTimeMillis() - phaseStart;
 
-        
-
-        // 1) วาดพื้นหลังคงที่ (ไม่ขยับ)
-        Graphics2D g2 = (Graphics2D) g.create();
-        // ตัวอย่างพื้นหลังแบบง่าย: ท้องฟ้าขาว+พื้นสีอ่อน
-        // g2.setColor(Color.WHITE);
-        // g2.fillRect(0, 0, W, H);
-        // g2.setColor(new Color(230, 245, 230));
-        // g2.fillRect(0, 420, W, H - 420);
-
-        // วาดพื้นหลังจากคลาส CuteFieldSceneColored
+    if (phase == 0) {
+        // ------- Phase 0: ตัวละครเลื่อนเข้ากลางภายใน SLIDE_DURATION_MS -------
         g.drawImage(bg.getImage(), 0, 0, null);
 
-        // 2) ถ้ายังไม่ประกอบสไปรต์ ให้สร้างครั้งเดียว
+        // ประกอบสไปรต์ครั้งเดียว
         if (!spriteBuilt) {
             Graphics gs = sprite.getGraphics();
-            buildSprite(gs);  // วาดตัวละครลงสไปรต์โปร่งใส
+            buildSprite(gs); // วาดตัวละครลง sprite (ARGB โปร่งใส)
             gs.dispose();
             spriteBuilt = true;
         }
 
-        // 3) วาดสไปรต์ด้วยการ translate → ขยับเฉพาะตัวละคร
+        // วาดตัวละครด้วย offsetX
+        Graphics2D g2 = (Graphics2D) g.create();
         g2.translate(offsetX, 0);
         g2.drawImage(sprite, 0, 0, null);
         g2.dispose();
-    }
 
-    @Override
-    public void run() {
-        long last = System.currentTimeMillis();
-        double speed = 120; // px/s
-        int minX = -200, maxX = 200;
+    } else if (phase == 1) {
+        // ------- Phase 1: สลับ BlackBG ↔ WhiteBG ทุก 500ms รวม 2000ms -------
+        long slot = elapsed / ALT_SLOT_MS; // 0..3 (4 สลับ = 2s)
+        if (slot < ALT_TOTAL_MS / ALT_SLOT_MS) {
+            if (slot % 2 == 0) {
+                g.drawImage(blackBG.getImage(), 0, 0, null);
+            } else {
+                g.drawImage(whiteBG.getImage(), 0, 0, null);
+            }
+        } else {
+            // ครบ 2 วินาที → เข้า phase 2
+            phase = 2;
+            phaseStart = System.currentTimeMillis();
+            //วาดพื้นหลังปกติทันทีรอบนี้ (กันกระพริบ)
+            g.drawImage(bg.getImage(), 0, 0, null);
+        }
 
-        while (true) {
-            long now = System.currentTimeMillis();
-            double dt = (now - last) / 1000.0;
-            last = now;
+    } else {
+        // ------- Phase 2: กลับพื้นหลังเดิม ตัวละครหยุดกลาง -------
+        g.drawImage(bg.getImage(), 0, 0, null);
 
-            if (goRight) offsetX += speed * dt; else offsetX -= speed * dt;
-            if (offsetX >= maxX) { offsetX = maxX; goRight = false; }
-            if (offsetX <= minX) { offsetX = minX; goRight = true;  }
-
-            repaint();
-            try { Thread.sleep(16); } catch (InterruptedException ignored) {}
+        if (spriteBuilt) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(END_X, 0); // กลางเฟรม (END_X = 0)
+            g2.drawImage(sprite, 0, 0, null);
+            g2.dispose();
         }
     }
+}
+
+
+
+
+    @Override
+public void run() {
+    while (true) {
+        long now = System.currentTimeMillis();
+
+        if (phase == 0) {
+            // ใช้เวลา SLIDE_DURATION_MS เลื่อนจาก START_X → END_X
+            double rawT = (now - phaseStart) / (double) SLIDE_DURATION_MS; // 0..1+
+            double t = Math.max(0, Math.min(1, rawT));
+            if (USE_EASING) t = easeInOut(t);
+
+            offsetX = START_X + (END_X - START_X) * t;
+
+            if (rawT >= 1.0) {
+                offsetX = END_X;
+                phase = 1;                 // ไป Phase 1 (สลับ BG)
+                phaseStart = now;
+            }
+
+        } else if (phase == 1) {
+            // รอให้ครบ 2 วินาที (สลับไปมา 4 ช่อง * 500ms)
+            if ((now - phaseStart) >= ALT_TOTAL_MS) {
+                phase = 2;
+                phaseStart = now;
+            }
+
+        } else {
+            // Phase 2: ค้างพื้นหลังเดิม ตัวละครค้างกลาง
+            offsetX = END_X;
+        }
+
+        repaint();
+        try { Thread.sleep(16); } catch (InterruptedException ignored) {}
+    }
+}
+
+
 
     /* ===== สร้างสไปรต์ตัวละคร (โปร่งใส) ===== */
     private void buildSprite(Graphics g) {

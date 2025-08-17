@@ -1,47 +1,49 @@
-import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.List;
 
-public class WhiteBG extends JPanel {
+public class WhiteBG {
 
-    private BufferedImage canvas;
+    private final BufferedImage canvas;
+    private boolean rendered = false; // cache: เรนเดอร์ครั้งเดียว (อยากสุ่มใหม่ก็เรียก rerender)
 
     public WhiteBG() {
         canvas = new BufferedImage(600, 600, BufferedImage.TYPE_INT_RGB);
     }
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        Graphics2D g2 = (Graphics2D) g;
-
-        drawSceneOnCanvas();
-
-        g2.drawImage(canvas, 0, 0, null);
+    /** ให้ Final เรียกเพื่อขอรูปพื้นหลัง */
+    public BufferedImage getImage() {
+        if (!rendered) {
+            renderToCanvas();
+            rendered = true;
+        }
+        return canvas;
     }
-    
+
+    /** บังคับวาดใหม่ (ถ้าต้องการปรับอะไร) */
+    public void rerender() {
+        renderToCanvas();
+        rendered = true;
+    }
+
     // ---------------- Scene Drawing ----------------
-    private void drawSceneOnCanvas() {
+    private void renderToCanvas() {
         drawWhiteBackground();
-        drawLightning(getWidth() / 2, 0, getWidth() / 2, 300);
+        int w = canvas.getWidth();
+        drawLightning(w / 2, 0, w / 2, 300); // สายฟ้าดำบนพื้นขาว
     }
 
     // ---------------- Background ----------------
     private void drawWhiteBackground() {
-        int width = getWidth();
-        int height = getHeight();
-        Color white = Color.WHITE;
-        
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                putPixel(x, y, white);
+        int w = canvas.getWidth(), h = canvas.getHeight();
+        int rgb = Color.WHITE.getRGB();
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                canvas.setRGB(x, y, rgb);
             }
         }
     }
 
-    // ---------------- Lightning ----------------
+    // ---------------- Lightning (สีดำ) ----------------
     private void drawLightning(int startX, int startY, int endX, int endY) {
         int segments = 8;
         int[] xOffset = {0, -12, 18, -8, 22, -16, 12, -10, 0};
@@ -57,19 +59,16 @@ public class WhiteBG extends JPanel {
             yPoints[i] = startY + (i * (endY - startY)) / segments;
         }
 
-        // เปลี่ยนเป็นสายฟ้าสีดำ
         Color[] lightningColors = {
-            new Color(0, 0, 0, 180), // ดำโปร่งนิดหน่อย
-            new Color(0, 0, 0, 220), // ดำเข้มขึ้น
-            Color.BLACK               // ดำสนิท
+            new Color(0, 0, 0, 180),
+            new Color(0, 0, 0, 220),
+            Color.BLACK
         };
-        
         int[] thicknesses = {14, 10, 5};
 
         for (int j = 0; j < lightningColors.length; j++) {
             Color color = lightningColors[j];
             int thickness = thicknesses[j];
-
             for (int i = 0; i < segments; i++) {
                 bresenhamThickLine(xPoints[i], yPoints[i], xPoints[i + 1], yPoints[i + 1], color, thickness);
             }
@@ -89,31 +88,15 @@ public class WhiteBG extends JPanel {
         int sx = (x0 < x1) ? 1 : -1;
         int sy = (y0 < y1) ? 1 : -1;
         int err = dx - dy;
-    
+
         while (true) {
             for (int i = 0; i < thickness; i++) {
                 putPixel(x0, y0 + i, color);
             }
             if (x0 == x1 && y0 == y1) break;
             int e2 = 2 * err;
-            if (e2 > -dy) {
-                err -= dy;
-                x0 += sx;
-            }
-            if (e2 < dx) {
-                err += dx;
-                y0 += sy;
-            }
+            if (e2 > -dy) { err -= dy; x0 += sx; }
+            if (e2 <  dx) { err += dx; y0 += sy; }
         }
-    }
-
-    // ---------------- Main ----------------
-    public static void main(String[] args) {
-        JFrame frame = new JFrame("White Background with Black Thunder");
-        WhiteBG panel = new WhiteBG();
-        frame.add(panel);
-        frame.setSize(600, 600);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setVisible(true);
     }
 }

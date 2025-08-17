@@ -1,43 +1,48 @@
-import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BlackBG extends JPanel {
+public class BlackBG {
 
-    private BufferedImage canvas;
+    private final BufferedImage canvas;
+    private boolean rendered = false; // cache: เรนเดอร์ครั้งเดียว (ถ้าต้องการสุ่มสายฟ้าใหม่ ค่อย rerender)
 
     public BlackBG() {
         canvas = new BufferedImage(600, 600, BufferedImage.TYPE_INT_RGB);
     }
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        Graphics2D g2 = (Graphics2D) g;
-
-        drawSceneOnCanvas();
-
-        g2.drawImage(canvas, 0, 0, null);
+    /** ให้ Final เรียกเพื่อขอรูปพื้นหลัง */
+    public BufferedImage getImage() {
+        if (!rendered) {
+            renderToCanvas();
+            rendered = true;
+        }
+        return canvas;
     }
-    
+
+    /** บังคับวาดใหม่ (ถ้าอยากเปลี่ยน/สุ่มลายอีกครั้ง) */
+    public void rerender() {
+        renderToCanvas();
+        rendered = true;
+    }
+
     // ---------------- Scene Drawing ----------------
-    private void drawSceneOnCanvas() {
+    private void renderToCanvas() {
         drawBlackBackground();
-        drawLightning(getWidth() / 2, 0, getWidth() / 2, 300);
+        // ใช้ขนาดจาก canvas (ไม่ใช่ getWidth/Height ของคอมโพเนนต์)
+        int w = canvas.getWidth();
+        drawLightning(w / 2, 0, w / 2, 300);
         drawMountain();
     }
 
     // ---------------- Background ----------------
     private void drawBlackBackground() {
-        int width = getWidth();
-        int height = getHeight();
-        Color black = Color.BLACK;
-        
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                putPixel(x, y, black);
+        int w = canvas.getWidth(), h = canvas.getHeight();
+        int rgb = Color.BLACK.getRGB();
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                canvas.setRGB(x, y, rgb);
             }
         }
     }
@@ -51,13 +56,13 @@ public class BlackBG extends JPanel {
 
         List<int[]> bezierPoints = bezierCurve(p0, p1, p2, p3, 200);
 
+        // สร้างพอลิกอนปิดพื้นที่
         Polygon mountain = new Polygon();
-        for (int[] pt : bezierPoints) {
-            mountain.addPoint(pt[0], pt[1]);
-        }
+        for (int[] pt : bezierPoints) mountain.addPoint(pt[0], pt[1]);
         mountain.addPoint(600, 600);
         mountain.addPoint(0, 600);
-        
+
+        // วาดเส้นพอลิกอนด้วยการ setRGB (วาดเส้นขอบเฉย ๆ)
         Graphics2D g2 = canvas.createGraphics();
         g2.setColor(Color.BLACK);
         g2.drawPolygon(mountain);
@@ -85,15 +90,12 @@ public class BlackBG extends JPanel {
             new Color(255, 255, 180, 200),
             Color.WHITE
         };
-        
         int[] thicknesses = {14, 10, 5};
 
         for (int j = 0; j < lightningColors.length; j++) {
             Color color = lightningColors[j];
             int thickness = thicknesses[j];
-
             for (int i = 0; i < segments; i++) {
-
                 bresenhamThickLine(xPoints[i], yPoints[i], xPoints[i + 1], yPoints[i + 1], color, thickness);
             }
         }
@@ -112,21 +114,15 @@ public class BlackBG extends JPanel {
         int sx = (x0 < x1) ? 1 : -1;
         int sy = (y0 < y1) ? 1 : -1;
         int err = dx - dy;
-    
+
         while (true) {
             for (int i = 0; i < thickness; i++) {
                 putPixel(x0, y0 + i, color);
             }
             if (x0 == x1 && y0 == y1) break;
             int e2 = 2 * err;
-            if (e2 > -dy) {
-                err -= dy;
-                x0 += sx;
-            }
-            if (e2 < dx) {
-                err += dx;
-                y0 += sy;
-            }
+            if (e2 > -dy) { err -= dy; x0 += sx; }
+            if (e2 <  dx) { err += dx; y0 += sy; }
         }
     }
 
@@ -147,15 +143,5 @@ public class BlackBG extends JPanel {
             points.add(new int[]{(int) x, (int) y});
         }
         return points;
-    }
-
-    // ---------------- Main ----------------
-    public static void main(String[] args) {
-        JFrame frame = new JFrame("Black Background with Thunder");
-        BlackBG panel = new BlackBG();
-        frame.add(panel);
-        frame.setSize(600, 600);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setVisible(true);
     }
 }
