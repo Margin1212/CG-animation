@@ -42,6 +42,9 @@ public class Final extends JPanel implements Runnable {
     private static final int ZOOM_AFTER_MS = 2000; // เริ่มซูมหลังเข้า phase 3 มา 1 วินาที
     private static final int ZOOM_DURATION_MS = 1500; // ใช้เวลาไล่ซูม 0.8 วินาที
 
+    // รอ 2 วิหลังซูมเสร็จแล้วรีสตาร์ทลูป
+    private static final int RESTART_WAIT_MS = 1000;
+
     // ===== จุดเริ่ม–จบ (แกน X) =====
     private double START_X = -600;
     private double END_X   = 0;
@@ -242,6 +245,16 @@ public void run() {
                 }
             }
             offsetX = END_X;
+
+            if (elapsed3 >= ZOOM_AFTER_MS + ZOOM_DURATION_MS + RESTART_WAIT_MS) {
+                phase = 0;
+                phaseStart = now;
+                offsetX = START_X;   // เริ่มเลื่อนเข้ามาใหม่จากซ้าย
+                scale = 1.0;         // รีเซ็ตซูม
+                angle = 0.0;         // กันค้างจาก phase 1
+                dias.clear();        // ล้างเพชร (จะสร้างใหม่เมื่อเข้า phase 3 รอบถัดไป)
+    }
+
         }
 
         repaint();
