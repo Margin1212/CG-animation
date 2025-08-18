@@ -18,16 +18,29 @@ public class Final extends JPanel implements Runnable {
     private int phase = 0;
     private long phaseStart = 0L;
 
+    // ===== STEP 1: เพชร (แบบไม่สุ่ม กระจายเป็นแถว) =====
+    private static class Dia { int x, y, s, vy, yReset; }  // << ใส่ตรงนี้
+    private final java.util.List<Dia> dias = new java.util.ArrayList<>();
+
     // หมุนตอนสลับขาว/ดำ
     private double angle = 0.0;     // หน่วย radian
     private double ROT_TURNS = 1.0; // หมุนกี่รอบตลอด Phase 1 (เช่น 1 = 1 รอบ)
+
+
+
 
 
     // ===== ระยะเวลา (ms) =====
     private int SLIDE_DURATION_MS    = 2000; // เลื่อนเข้ากลาง
     private static final int ALT_TOTAL_MS = 1000; // รวมเวลาสลับ BG
     private static final int ALT_SLOT_MS  = 100;  // ระยะต่อช่วง
-    private static final int PHASE2_HOLD_MS = 1000; // โชว์ฉากเดิมค้าง ก่อนเข้า phase 3
+    private static final int PHASE2_HOLD_MS = 500; // โชว์ฉากเดิมค้าง ก่อนเข้า phase 3
+
+        // ซูมอินหลังเพชรตก
+    private double scale = 1.0;        // ขนาดปัจจุบัน (ปกติ = 1.0)
+    private static final double SCALE_TO = 10.00;   // ซูมถึง 130%
+    private static final int ZOOM_AFTER_MS = 2000; // เริ่มซูมหลังเข้า phase 3 มา 1 วินาที
+    private static final int ZOOM_DURATION_MS = 1500; // ใช้เวลาไล่ซูม 0.8 วินาที
 
     // ===== จุดเริ่ม–จบ (แกน X) =====
     private double START_X = -600;
@@ -140,14 +153,22 @@ public class Final extends JPanel implements Runnable {
             }
 
         } else if (phase == 3) {
-        // ------- Phase 2: กลับพื้นหลังเดิม ตัวละครหยุดกลาง -------
             g.drawImage(goldmou.getImage(), 0, 0, null);
+
+            // วาดตัวละคร (ซูมจากกึ่งกลางเฟรมตามค่า scale)
             if (spriteBuilt) {
                 Graphics2D g2 = (Graphics2D) g.create();
-                g2.translate(END_X, 0);
-                g2.drawImage(sprite, 0, 0, null);
+                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g2.translate(END_X + W/2.0, H/2.0); // origin -> center
+                g2.scale(scale, scale);             // ใช้ค่าซูมที่คำนวณจาก run()
+                g2.drawImage(sprite, -W/2, -H/2, null);
                 g2.dispose();
             }
+
+            // วาดเพชรให้ตกอยู่ด้านหน้า
+            Graphics2D g2d = (Graphics2D) g.create();
+            for (Dia d : dias) drawDiamond(g2d, d.x, d.y, d.s);
+            g2d.dispose();
         }
     }
 
@@ -159,69 +180,141 @@ public class Final extends JPanel implements Runnable {
 
 
     @Override
-    public void run() {
-        while (true) {
-            long now = System.currentTimeMillis();
+public void run() {
+    long lastTime = System.currentTimeMillis(); // << เพิ่มไว้คำนวณ dt
 
-            if (phase == 0) {
-                // ใช้เวลา SLIDE_DURATION_MS เลื่อนจาก START_X → END_X
-                double rawT = (now - phaseStart) / (double) SLIDE_DURATION_MS; // 0..1+
-                double t = Math.max(0, Math.min(1, rawT));
-                if (USE_EASING) t = easeInOut(t);
+    while (true) {
+        long now = System.currentTimeMillis();
+        double dt = (now - lastTime) / 1000.0; // วินาที
+        lastTime = now;
 
-                offsetX = START_X + (END_X - START_X) * t;
+        if (phase == 0) {
+            double rawT = (now - phaseStart) / (double) SLIDE_DURATION_MS;
+            double t = Math.max(0, Math.min(1, rawT));
+            if (USE_EASING) t = easeInOut(t);
 
-                if (rawT >= 1.0) {
-                    offsetX = END_X;
-                    phase = 1;                 // ไป Phase 1 (สลับ BG)
-                    phaseStart = now;
-                }
+            offsetX = START_X + (END_X - START_X) * t;
 
-            } else if (phase == 1) {
-            // ความคืบหน้า 0..1 ตลอดช่วง ALT_TOTAL_MS
+            if (rawT >= 1.0) {
+                offsetX = END_X;
+                phase = 1;
+                phaseStart = now;
+            }
+
+        } else if (phase == 1) {
             double progress = (now - phaseStart) / (double) ALT_TOTAL_MS;
             if (progress < 0) progress = 0;
             if (progress > 1) progress = 1;
 
-            // คำนวณมุม (2π rad = 1 รอบ) * จำนวนรอบที่อยากหมุน
             angle = 10 * Math.PI * ROT_TURNS * progress;
 
-            // เมื่อครบเวลา ให้ไป Phase 2
             if ((now - phaseStart) >= ALT_TOTAL_MS) {
                 phase = 2;
                 phaseStart = now;
-                angle = 0.0; // รีเซ็ตมุม
+                angle = 0.0;
             }
 
-            } else if (phase == 2) {
-                // โชว์ฉากเดิมค้าง แล้วไป phase 3
-                if ((now - phaseStart) >= PHASE2_HOLD_MS) {
-                    phase = 3;
-                    phaseStart = now;
-                }
-                offsetX = END_X;
+        } else if (phase == 2) {
+            if ((now - phaseStart) >= PHASE2_HOLD_MS) {
+                phase = 3;
+                phaseStart = now;
+                initDiamonds();   // << เรียกครั้งเดียวตอนเข้า phase 3
+            }
+            offsetX = END_X;
 
+        } else { // phase == 3
+
+            // ซูมอินหลังเข้า phase 3 มาแล้ว 1 วินาที
+            long elapsed3 = now - phaseStart;
+            if (elapsed3 < ZOOM_AFTER_MS) {
+                scale = 1.0;  // ปกติ
             } else {
-                // Phase 3: ค้างฉาก MounThun
-                offsetX = END_X;
+                double p = (elapsed3 - ZOOM_AFTER_MS) / (double) ZOOM_DURATION_MS; // 0..1
+                if (p < 0) p = 0; if (p > 1) p = 1;
+                if (USE_EASING) p = easeInOut(p);
+                scale = 1.0 + (SCALE_TO - 1.0) * p; // ไล่ซูมถึง SCALE_TO
             }
+            // อัปเดตเพชรให้ตกลง
+            for (Dia d : dias) {
+                d.y += (int)(d.vy * dt);
+                if (d.y - d.s > H) {  // หลุดล่างจอ
+                    d.y = d.yReset;   // รีเซ็ตกลับค่าตั้งต้น (ไม่สุ่ม)
+                }
+            }
+            offsetX = END_X;
+        }
 
-            repaint();
-            try { Thread.sleep(16); } catch (InterruptedException ignored) {}
+        repaint();
+        try { Thread.sleep(16); } catch (InterruptedException ignored) {}
+    }
+}
+
+
+
+
+
+
+
+
+
+
+    // วาด "เพชร" แบบสี่เหลี่ยมข้าวหลามตัด เติมสี + ขอบ
+private void drawDiamond(Graphics2D g2, int cx, int cy, int s) {
+    int[] xs = { cx,     cx + s, cx,     cx - s };
+    int[] ys = { cy - s, cy,     cy + s, cy     };
+
+    Polygon p = new Polygon(xs, ys, 4);
+
+    // เติมสีภายใน
+    g2.setColor(new Color(180, 240, 255)); // ฟ้าอ่อนใส
+    g2.fillPolygon(p);
+
+    // ขอบสว่าง
+    g2.setColor(Color.WHITE);
+    g2.setStroke(new BasicStroke(2f));
+    g2.drawPolygon(p);
+
+    // ไฮไลต์นิด ๆ (เส้นสั้น ๆ ไปทิศละด้าน)
+    g2.drawLine(cx, cy - s, cx, cy - s/2);
+    g2.drawLine(cx + s, cy, cx + s/2, cy);
+    g2.drawLine(cx, cy + s, cx, cy + s/2);
+    g2.drawLine(cx - s, cy, cx - s/2, cy);
+}
+
+
+    private void initDiamonds() {
+    dias.clear();
+
+    // กำหนดตารางวางเพชร (2 แถว x 8 คอลัมน์)
+    final int cols = 8;
+    final int rows = 2;
+
+    final int marginX = 40;
+    final int usableW = W - marginX * 2;
+    final int stepX = usableW / (cols - 1);
+
+    // y เริ่มเหนือจอ (สองระดับ เพื่อให้ตกสลับตำแหน่งกันเล็กน้อย)
+    final int rowY0 = -120;
+    final int rowY1 = -60;
+
+    // ขนาด/ความเร็วให้เป็นแพทเทิร์นคงที่
+    final int sizeRow0 = 18;
+    final int sizeRow1 = 14;
+    final int vyRow0   = 140;  // px/s
+    final int vyRow1   = 110;  // px/s
+
+    for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+            Dia d = new Dia();
+            d.x = marginX + c * stepX;
+            d.y = (r == 0) ? rowY0 : rowY1;
+            d.yReset = d.y;                    // เก็บ y เริ่มต้นไว้สำหรับรีเซ็ต
+            d.s = (r == 0) ? sizeRow0 : sizeRow1;
+            d.vy = (r == 0) ? vyRow0   : vyRow1;
+            dias.add(d);
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
+}
 
 
     /* ===== สร้างสไปรต์ตัวละคร (โปร่งใส) ===== */
