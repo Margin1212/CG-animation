@@ -52,6 +52,70 @@ public class CuteFieldSceneColored {   // << ไม่ต้อง extends JPane
         drawGradientCloud(370,  80, 20, new Color(255,255,255), new Color(200,230,255));
         drawGradientCloud(400,  70, 25, new Color(255,255,255), new Color(200,230,255));
         drawGradientCloud(430,  80, 20, new Color(255,255,255), new Color(200,230,255));
+    
+        // TREES
+        Graphics2D g2 = canvas.createGraphics();
+        drawTree(g2, 100, 420);
+        drawTree(g2, 500, 430);
+        
+    
+    
+    }
+
+
+    // ---------------- DRAW TREE ----------------
+    private void drawTree(Graphics2D g2, int baseX, int baseY) {
+        // trunk
+        g2.setColor(new Color(120, 70, 20));
+        int trunkWidth = 20, trunkHeight = 60;
+        Polygon trunk = new Polygon();
+        trunk.addPoint(baseX - trunkWidth / 2, baseY);
+        trunk.addPoint(baseX + trunkWidth / 2, baseY);
+        trunk.addPoint(baseX + trunkWidth / 2, baseY - trunkHeight);
+        trunk.addPoint(baseX - trunkWidth / 2, baseY - trunkHeight);
+        g2.fillPolygon(trunk);
+
+        // leaves
+        g2.setColor(new Color(40, 180, 60));
+        drawBezierLeaf(g2, baseX, baseY - trunkHeight - 10, 25);
+        drawBezierLeaf(g2, baseX - 20, baseY - trunkHeight, 20);
+        drawBezierLeaf(g2, baseX + 20, baseY - trunkHeight, 20);
+        drawBezierLeaf(g2, baseX, baseY - trunkHeight - 30, 20);
+    }
+
+     // ---------------- BEZIER LEAF ----------------
+    private void drawBezierLeaf(Graphics2D g2, int xc, int yc, int r) {
+        Polygon leaf = new Polygon();
+        int segments = 8;
+        double angleStep = 2 * Math.PI / segments;
+
+        for (int i = 0; i < segments; i++) {
+            double t1 = i * angleStep;
+            double t2 = (i + 1) * angleStep;
+
+            double x0 = xc + r * Math.cos(t1);
+            double y0 = yc + r * Math.sin(t1);
+            double x3 = xc + r * Math.cos(t2);
+            double y3 = yc + r * Math.sin(t2);
+
+            double x1 = xc + r * 1.2 * Math.cos(t1 + angleStep * 0.25);
+            double y1 = yc + r * 1.2 * Math.sin(t1 + angleStep * 0.25);
+            double x2 = xc + r * 1.2 * Math.cos(t2 - angleStep * 0.25);
+            double y2 = yc + r * 1.2 * Math.sin(t2 - angleStep * 0.25);
+
+            for (double t = 0; t <= 1.0; t += 0.01) {
+                double xt = Math.pow(1 - t, 3) * x0 +
+                            3 * Math.pow(1 - t, 2) * t * x1 +
+                            3 * (1 - t) * t * t * x2 +
+                            t * t * t * x3;
+                double yt = Math.pow(1 - t, 3) * y0 +
+                            3 * Math.pow(1 - t, 2) * t * y1 +
+                            3 * (1 - t) * t * t * y2 +
+                            t * t * t * y3;
+                leaf.addPoint((int) xt, (int) yt);
+            }
+        }
+        g2.fillPolygon(leaf);
     }
 
     // ---------------- Gradient Mountain using Bezier + Scanline ----------------

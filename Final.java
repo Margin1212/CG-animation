@@ -7,11 +7,11 @@ public class Final extends JPanel implements Runnable {
     private BufferedImage sprite;         // เฉพาะตัวละคร (โปร่งใส)
     private boolean spriteBuilt = false;
 
-    private CuteFieldSceneColored bg = new CuteFieldSceneColored();
+    private CuteFieldSceneColored  bg = new CuteFieldSceneColored ();
     private BlackBG blackBG = new BlackBG();
     private WhiteBG whiteBG = new WhiteBG();
     private MounThun mounThun = new MounThun();
-    private Goldmou goldmou = new Goldmou();
+    private Newgoldmou goldmou = new Newgoldmou();
 
     // ===== คุมลำดับเหตุการณ์ =====
     // 0 = เลื่อนเข้ากลาง, 1 = สลับ Black/White, 2 = ฉากเดิมค้าง, 3 = ฉาก MounThun ค้าง
