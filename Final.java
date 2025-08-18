@@ -4,58 +4,44 @@ import java.util.*;
 import javax.swing.*;
 
 public class Final extends JPanel implements Runnable {
-    private BufferedImage sprite;       // เฉพาะตัวละคร (โปร่งใส)
+    private BufferedImage sprite;         // เฉพาะตัวละคร (โปร่งใส)
     private boolean spriteBuilt = false;
 
     private CuteFieldSceneColored bg = new CuteFieldSceneColored();
     private BlackBG blackBG = new BlackBG();
     private WhiteBG whiteBG = new WhiteBG();
+    private MounThun mounThun = new MounThun();
+    private Goldmou goldmou = new Goldmou();
 
-    // คุมลำดับเหตุการณ์
-    // phase: 0 = slide-in 1s, 1 = blackout 1s, 2 = background ปกติ
+    // ===== คุมลำดับเหตุการณ์ =====
+    // 0 = เลื่อนเข้ากลาง, 1 = สลับ Black/White, 2 = ฉากเดิมค้าง, 3 = ฉาก MounThun ค้าง
     private int phase = 0;
     private long phaseStart = 0L;
 
+    // หมุนตอนสลับขาว/ดำ
+    private double angle = 0.0;     // หน่วย radian
+    private double ROT_TURNS = 1.0; // หมุนกี่รอบตลอด Phase 1 (เช่น 1 = 1 รอบ)
 
 
+    // ===== ระยะเวลา (ms) =====
+    private int SLIDE_DURATION_MS    = 2000; // เลื่อนเข้ากลาง
+    private static final int ALT_TOTAL_MS = 1000; // รวมเวลาสลับ BG
+    private static final int ALT_SLOT_MS  = 100;  // ระยะต่อช่วง
+    private static final int PHASE2_HOLD_MS = 1000; // โชว์ฉากเดิมค้าง ก่อนเข้า phase 3
 
-
-    // ระยะเวลา (ms)
-    private int SLIDE_DURATION_MS    = 2000; // เวลาตัวละครเลื่อนเข้ากลางจอ
-    private int BLACKOUT_DURATION_MS = 1000; // เวลาจอดำค้าง
-
-
-    // สลับ BG (BlackBG/WhiteBG) ครึ่งวิ/ครั้ง รวม 2 วินาที
-    private static final int ALT_TOTAL_MS = 2000;
-    private static final int ALT_SLOT_MS  = 500;
-
-
-
-    // จุดเริ่ม–จบ (แกน X)
+    // ===== จุดเริ่ม–จบ (แกน X) =====
     private double START_X = -600;
     private double END_X   = 0;
 
-    // (ทางเลือก) เปิด/ปิด easing (ทำให้นุ่มนวลขึ้น)
+    // ===== easing =====
     private boolean USE_EASING = true;
-
-    // ฟังก์ชัน easing
     private double easeInOut(double t) {
-        // t อยู่ระหว่าง 0..1
         return (t < 0.5) ? (2*t*t) : (1 - Math.pow(-2*t + 2, 2) / 2);
     }
 
-
-
-
-
-
     // ตำแหน่งตัวละคร (เลื่อนแกน X)
-    private double offsetX = -600; // เริ่มนอกจอซ้าย
-
-
-    // ตัวแปรอนิเมชัน
-    //private double offsetX = 0;
-    //private boolean goRight = true;
+    private double offsetX = START_X;
+    
 
     private static final int W = 600, H = 600;
 
@@ -76,112 +62,171 @@ public class Final extends JPanel implements Runnable {
     }
 
     public Final() {
-        // ทำสไปรต์โปร่งใส
         sprite = new BufferedImage(W, H, BufferedImage.TYPE_INT_ARGB);
-
         phaseStart = System.currentTimeMillis();
-
     }
 
+
+
+
+
+
+
+
     @Override
-protected void paintComponent(Graphics g) {
-    super.paintComponent(g);
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
 
-    long elapsed = System.currentTimeMillis() - phaseStart;
+        long elapsed = System.currentTimeMillis() - phaseStart;
 
-    if (phase == 0) {
-        // ------- Phase 0: ตัวละครเลื่อนเข้ากลางภายใน SLIDE_DURATION_MS -------
-        g.drawImage(bg.getImage(), 0, 0, null);
+        if (phase == 0) {
+            // ------- Phase 0: ตัวละครเลื่อนเข้ากลาง -------
+            g.drawImage(bg.getImage(), 0, 0, null);
 
-        // ประกอบสไปรต์ครั้งเดียว
-        if (!spriteBuilt) {
+            if (!spriteBuilt) {
+                Graphics gs = sprite.getGraphics();
+                buildSprite(gs); // วาดตัวละครลง sprite (ARGB โปร่งใส)
+                gs.dispose();
+                spriteBuilt = true;
+            }
+
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(offsetX, 0);
+            g2.drawImage(sprite, 0, 0, null);
+            g2.dispose();
+
+        } else if (phase == 1) {
+            if (!spriteBuilt) {
             Graphics gs = sprite.getGraphics();
-            buildSprite(gs); // วาดตัวละครลง sprite (ARGB โปร่งใส)
+            buildSprite(gs);
             gs.dispose();
             spriteBuilt = true;
-        }
-
-        // วาดตัวละครด้วย offsetX
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.translate(offsetX, 0);
-        g2.drawImage(sprite, 0, 0, null);
-        g2.dispose();
-
-    } else if (phase == 1) {
-        // ------- Phase 1: สลับ BlackBG ↔ WhiteBG ทุก 500ms รวม 2000ms -------
-        long slot = elapsed / ALT_SLOT_MS; // 0..3 (4 สลับ = 2s)
-        if (slot < ALT_TOTAL_MS / ALT_SLOT_MS) {
-            if (slot % 2 == 0) {
-                g.drawImage(blackBG.getImage(), 0, 0, null);
-            } else {
-                g.drawImage(whiteBG.getImage(), 0, 0, null);
             }
+
+            final long totalSlots = ALT_TOTAL_MS / ALT_SLOT_MS;
+            long slot = elapsed / ALT_SLOT_MS;
+
+        // 1) วาดพื้นหลังสลับ
+        if (slot < totalSlots) {
+            if (slot % 2 == 0) g.drawImage(blackBG.getImage(), 0, 0, null);
+            else               g.drawImage(whiteBG.getImage(), 0, 0, null);
+
+            // 2) วาดตัวละคร "หมุน" อยู่กลางเฟรม
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.translate(END_X + W/2.0, H/2.0); // ย้าย origin ไปกึ่งกลางภาพ
+            g2.rotate(angle);                   // หมุนรอบจุดกึ่งกลาง
+            g2.drawImage(sprite, -W/2, -H/2, null); // วาดให้ sprite จอดันจุดกึ่งกลางพอดี
+            g2.dispose();
         } else {
-            // ครบ 2 วินาที → เข้า phase 2
             phase = 2;
             phaseStart = System.currentTimeMillis();
-            //วาดพื้นหลังปกติทันทีรอบนี้ (กันกระพริบ)
+            angle = 0.0; // รีเซ็ตมุมหลังจบการสลับ
             g.drawImage(bg.getImage(), 0, 0, null);
-        }
 
-    } else {
-        // ------- Phase 2: กลับพื้นหลังเดิม ตัวละครหยุดกลาง -------
-        g.drawImage(bg.getImage(), 0, 0, null);
-
-        if (spriteBuilt) {
             Graphics2D g2 = (Graphics2D) g.create();
-            g2.translate(END_X, 0); // กลางเฟรม (END_X = 0)
+            g2.translate(END_X, 0);
             g2.drawImage(sprite, 0, 0, null);
             g2.dispose();
         }
+
+        } else if (phase == 2) {
+            // ------- Phase 3: ใช้ฉากใหม่ MounThun ตัวละครอยู่กลาง -------
+            g.drawImage(mounThun.getImage(), 0, 0, null);
+            if (spriteBuilt) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.translate(END_X, 0);
+                g2.drawImage(sprite, 0, 0, null);
+                g2.dispose();
+            }
+
+        } else if (phase == 3) {
+        // ------- Phase 2: กลับพื้นหลังเดิม ตัวละครหยุดกลาง -------
+            g.drawImage(goldmou.getImage(), 0, 0, null);
+            if (spriteBuilt) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.translate(END_X, 0);
+                g2.drawImage(sprite, 0, 0, null);
+                g2.dispose();
+            }
+        }
     }
-}
+
+
+
+
 
 
 
 
     @Override
-public void run() {
-    while (true) {
-        long now = System.currentTimeMillis();
+    public void run() {
+        while (true) {
+            long now = System.currentTimeMillis();
 
-        if (phase == 0) {
-            // ใช้เวลา SLIDE_DURATION_MS เลื่อนจาก START_X → END_X
-            double rawT = (now - phaseStart) / (double) SLIDE_DURATION_MS; // 0..1+
-            double t = Math.max(0, Math.min(1, rawT));
-            if (USE_EASING) t = easeInOut(t);
+            if (phase == 0) {
+                // ใช้เวลา SLIDE_DURATION_MS เลื่อนจาก START_X → END_X
+                double rawT = (now - phaseStart) / (double) SLIDE_DURATION_MS; // 0..1+
+                double t = Math.max(0, Math.min(1, rawT));
+                if (USE_EASING) t = easeInOut(t);
 
-            offsetX = START_X + (END_X - START_X) * t;
+                offsetX = START_X + (END_X - START_X) * t;
 
-            if (rawT >= 1.0) {
-                offsetX = END_X;
-                phase = 1;                 // ไป Phase 1 (สลับ BG)
-                phaseStart = now;
-            }
+                if (rawT >= 1.0) {
+                    offsetX = END_X;
+                    phase = 1;                 // ไป Phase 1 (สลับ BG)
+                    phaseStart = now;
+                }
 
-        } else if (phase == 1) {
-            // รอให้ครบ 2 วินาที (สลับไปมา 4 ช่อง * 500ms)
+            } else if (phase == 1) {
+            // ความคืบหน้า 0..1 ตลอดช่วง ALT_TOTAL_MS
+            double progress = (now - phaseStart) / (double) ALT_TOTAL_MS;
+            if (progress < 0) progress = 0;
+            if (progress > 1) progress = 1;
+
+            // คำนวณมุม (2π rad = 1 รอบ) * จำนวนรอบที่อยากหมุน
+            angle = 10 * Math.PI * ROT_TURNS * progress;
+
+            // เมื่อครบเวลา ให้ไป Phase 2
             if ((now - phaseStart) >= ALT_TOTAL_MS) {
                 phase = 2;
                 phaseStart = now;
+                angle = 0.0; // รีเซ็ตมุม
             }
 
-        } else {
-            // Phase 2: ค้างพื้นหลังเดิม ตัวละครค้างกลาง
-            offsetX = END_X;
-        }
+            } else if (phase == 2) {
+                // โชว์ฉากเดิมค้าง แล้วไป phase 3
+                if ((now - phaseStart) >= PHASE2_HOLD_MS) {
+                    phase = 3;
+                    phaseStart = now;
+                }
+                offsetX = END_X;
 
-        repaint();
-        try { Thread.sleep(16); } catch (InterruptedException ignored) {}
+            } else {
+                // Phase 3: ค้างฉาก MounThun
+                offsetX = END_X;
+            }
+
+            repaint();
+            try { Thread.sleep(16); } catch (InterruptedException ignored) {}
+        }
     }
-}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
     /* ===== สร้างสไปรต์ตัวละคร (โปร่งใส) ===== */
     private void buildSprite(Graphics g) {
-        // อย่าเคลียร์เป็นสีขาว! ปล่อยให้โปร่งใส (ARGB = 0) จะทับพื้นหลังได้สวย
-        // วาดเส้น/ถมสีด้วยฟังก์ชัน rasterization ของคุณ (เหมือนเดิมทุกอย่าง)
+        // อย่าเคลียร์เป็นสีขาว! ปล่อยให้โปร่งใส (ARGB = 0)
         drawTailDecorOnSprite();
         headFilled();
         faceFilled();
@@ -191,6 +236,18 @@ public void run() {
     private void setPixel(int x, int y, int rgb) {
         if (x>=0 && y>=0 && x<W && y<H) sprite.setRGB(x, y, rgb);
     }
+
+    // วาดขอบจากจุดโพลิกอน (ใช้เส้นธรรมดา)
+    private void strokeFromPoints(java.util.List<Point> pts, int rgb) {
+        for (int i = 0; i < pts.size() - 1; i++) {
+            Point a = pts.get(i), b = pts.get(i + 1);
+            drawLineBresenham(a.x, a.y, b.x, b.y, rgb);
+        }
+        // ปิดรูป
+        Point last = pts.get(pts.size() - 1), first = pts.get(0);
+        drawLineBresenham(last.x, last.y, first.x, first.y, rgb);
+    }
+
 
     private void drawLineBresenham(int x1, int y1, int x2, int y2, int rgb) {
         int dx = Math.abs(x2 - x1), dy = Math.abs(y2 - y1);
@@ -289,14 +346,12 @@ public void run() {
     }
 
     private void headFilled(){
-        // หาง/ตัว/หัว/หู
-        fillEllipseMidpoint(275+105, 105+155, 105, 155, COL_TAIL);
-        fillEllipseMidpoint(195+105, 275+90, 105, 90, COL_BODY);
-        fillEllipseMidpoint(165+132, 170+125, 132, 125, COL_BODY);
-        fillEllipseMidpoint(175+45, 120+45, 45, 45, COL_BODY);
-        fillEllipseMidpoint(330+45, 120+45, 45, 45, COL_BODY);
-
-        // มือ/ขา (โพลีจาก bezier)
+        fillEllipseMidpoint(275+105, 105+155, 105, 155, COL_TAIL); // หาง
+        fillEllipseMidpoint(195+105, 275+90, 105, 90, COL_BODY);   // ตัว
+        fillEllipseMidpoint(165+132, 170+125, 132, 125, COL_BODY); // หัว
+        fillEllipseMidpoint(175+45, 120+45, 45, 45, COL_BODY);     // หูซ้าย
+        fillEllipseMidpoint(330+45, 120+45, 45, 45, COL_BODY);     // หูขวา
+        // มือ/ขา
         fillHandLeft(COL_BODY);
         fillHandRight(COL_BODY);
         fillLegLeft(COL_BODY);
@@ -304,22 +359,17 @@ public void run() {
     }
 
     private void faceFilled(){
-        // ขนแก้ม (เส้น)
         drawCheekHairs();
-
-        // ตา
+        // วงตา
         fillEllipseMidpoint(225+20, 270+17, 20, 17, COL_OUT);
         fillEllipseMidpoint(315+20, 270+17, 20, 17, COL_OUT);
         fillEllipseMidpoint(225+20, 272+12, 20, 12, COL_OUT);
         fillEllipseMidpoint(315+20, 272+12, 20, 12, COL_OUT);
-
         // ตาฟ้า
         fillEllipseMidpoint(275+16, 270+16, 16, 16, COL_TAIL);
-
         // แก้มชมพู
         fillEllipseMidpoint(185+25, 295+20, 25, 20, COL_PINK);
         fillEllipseMidpoint(345+25, 295+20, 25, 20, COL_PINK);
-
         // ปาก
         fillEllipseMidpoint(288+2, 310+2, 2, 2, COL_OUT);
         drawQuadBezier(290,315, 280,335, 265,320, COL_OUT);
@@ -335,6 +385,7 @@ public void run() {
         pts.add(new Point(205,395));
         pts.add(new Point(200,375));
         fillPolyFromPoints(pts, rgb);
+        strokeFromPoints(pts, COL_OUT);
     }
     private void fillHandRight(int rgb){
         java.util.List<Point> pts=new ArrayList<>();
@@ -344,6 +395,7 @@ public void run() {
         pts.add(new Point(405,360));
         pts.add(new Point(375,355));
         fillPolyFromPoints(pts, rgb);
+        strokeFromPoints(pts, COL_OUT);
     }
     private void fillLegLeft(int rgb){
         java.util.List<Point> pts=new ArrayList<>();
@@ -353,6 +405,7 @@ public void run() {
         pts.add(new Point(280,450));
         pts.add(new Point(250,440));
         fillPolyFromPoints(pts, rgb);
+        strokeFromPoints(pts, COL_OUT);
     }
     private void fillLegRight(int rgb){
         java.util.List<Point> pts=new ArrayList<>();
@@ -362,6 +415,7 @@ public void run() {
         pts.add(new Point(340,445));
         pts.add(new Point(310,450));
         fillPolyFromPoints(pts, rgb);
+        strokeFromPoints(pts, COL_OUT);
     }
     private void drawCheekHairs(){
         drawQuadBezier(170,275,145,270,135,275, COL_OUT);

@@ -1,55 +1,59 @@
-import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Goldmou extends JPanel {
+public class Goldmou {
 
-    private BufferedImage canvas;
+    private final BufferedImage canvas;
+    private boolean rendered = false; // cache: เรนเดอร์ครั้งเดียว (อยากวาดใหม่ให้เรียก rerender)
 
     public Goldmou() {
         canvas = new BufferedImage(600, 600, BufferedImage.TYPE_INT_RGB);
     }
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        Graphics2D g2 = (Graphics2D) g;
+    /** ให้ Final เรียกเพื่อขอรูปพื้นหลัง */
+    public BufferedImage getImage() {
+        if (!rendered) {
+            renderToCanvas();
+            rendered = true;
+        }
+        return canvas;
+    }
 
-        drawSceneOnCanvas();
-
-        g2.drawImage(canvas, 0, 0, null);
+    /** บังคับวาดใหม่ (ถ้าต้องการปรับ/สุ่มลายอีกครั้ง) */
+    public void rerender() {
+        renderToCanvas();
+        rendered = true;
     }
 
     // ---------------- Scene Drawing ----------------
-    private void drawSceneOnCanvas() {
+    private void renderToCanvas() {
         drawSkyGradient();
         drawGoldenMountain();  // ภูเขาทอง
     }
 
-    // ---------------- Sky Background (Bresenham-based) ----------------
+    // ---------------- Sky Background (scanline ด้วย Bresenham แนวนอน) ----------------
     private void drawSkyGradient() {
-        int height = getHeight();
-        int width = getWidth();
+        int width  = canvas.getWidth();
+        int height = canvas.getHeight();
 
-        Color top = new Color(255, 223, 105);
+        Color top    = new Color(255, 223, 105);
         Color bottom = new Color(212, 175, 55);
 
         for (int y = 0; y < height; y++) {
-            float ratio = (float) y / height;
-            int r = (int) (top.getRed() * (1 - ratio) + bottom.getRed() * ratio);
+            float ratio = (float) y / (float) height;
+            int r = (int) (top.getRed()   * (1 - ratio) + bottom.getRed()   * ratio);
             int g = (int) (top.getGreen() * (1 - ratio) + bottom.getGreen() * ratio);
-            int b = (int) (top.getBlue() * (1 - ratio) + bottom.getBlue() * ratio);
-
+            int b = (int) (top.getBlue()  * (1 - ratio) + bottom.getBlue()  * ratio);
             Color gradientColor = new Color(r, g, b);
 
-            // ใช้ Bresenham เพื่อวาดเส้นแนวนอนเติมสีพื้นหลัง
-            bresenhamLine(0, y, width, y, gradientColor);
+            // วาดเส้นแนวนอนเต็มความกว้าง (0..width-1)
+            bresenhamLine(0, y, width - 1, y, gradientColor);
         }
     }
 
-    // ---------------- Mountain (Bezier + Polygon) ----------------
+    // ---------------- Mountain (Bezier + Polygon fill) ----------------
     private void drawGoldenMountain() {
         int[] p0 = {0, 600};
         int[] p1 = {150, 300};
@@ -59,15 +63,12 @@ public class Goldmou extends JPanel {
         List<int[]> bezierPoints = bezierCurve(p0, p1, p2, p3, 200);
 
         Polygon mountain = new Polygon();
-        for (int[] pt : bezierPoints) {
-            mountain.addPoint(pt[0], pt[1]);
-        }
+        for (int[] pt : bezierPoints) mountain.addPoint(pt[0], pt[1]);
         mountain.addPoint(600, 600);
         mountain.addPoint(0, 600);
 
-        // ใช้ fillPolygon() ที่ได้รับอนุญาต
         Graphics2D g2 = canvas.createGraphics();
-        g2.setColor(new Color(218, 165, 32));
+        g2.setColor(new Color(218, 165, 32)); // golden
         g2.fillPolygon(mountain);
         g2.dispose();
     }
@@ -89,15 +90,9 @@ public class Goldmou extends JPanel {
         while (true) {
             putPixel(x0, y0, color);
             if (x0 == x1 && y0 == y1) break;
-            int e2 = 2 * err;
-            if (e2 > -dy) {
-                err -= dy;
-                x0 += sx;
-            }
-            if (e2 < dx) {
-                err += dx;
-                y0 += sy;
-            }
+            int e2 = err << 1;
+            if (e2 > -dy) { err -= dy; x0 += sx; }
+            if (e2 <  dx) { err += dx; y0 += sy; }
         }
     }
 
@@ -105,29 +100,18 @@ public class Goldmou extends JPanel {
         List<int[]> points = new ArrayList<>();
         for (int i = 0; i <= steps; i++) {
             double t = (double) i / steps;
-            double x = Math.pow(1 - t, 3) * p0[0] +
-                       3 * t * Math.pow(1 - t, 2) * p1[0] +
-                       3 * (1 - t) * t * t * p2[0] +
-                       t * t * t * p3[0];
+            double x = Math.pow(1 - t, 3) * p0[0]
+                     + 3 * t * Math.pow(1 - t, 2) * p1[0]
+                     + 3 * (1 - t) * t * t * p2[0]
+                     + t * t * t * p3[0];
 
-            double y = Math.pow(1 - t, 3) * p0[1] +
-                       3 * t * Math.pow(1 - t, 2) * p1[1] +
-                       3 * (1 - t) * t * t * p2[1] +
-                       t * t * t * p3[1];
+            double y = Math.pow(1 - t, 3) * p0[1]
+                     + 3 * t * Math.pow(1 - t, 2) * p1[1]
+                     + 3 * (1 - t) * t * t * p2[1]
+                     + t * t * t * p3[1];
 
             points.add(new int[]{(int) x, (int) y});
         }
         return points;
     }
-
-    // ---------------- Main ----------------
-    public static void main(String[] args) {
-        JFrame frame = new JFrame("Goldmou");
-        Goldmou panel = new Goldmou();
-        frame.add(panel);
-        frame.setSize(600, 600);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setVisible(true);
-    }
 }
-
