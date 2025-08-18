@@ -7,6 +7,14 @@ public class Final extends JPanel implements Runnable {
     private BufferedImage sprite;         // เฉพาะตัวละคร (โปร่งใส)
     private boolean spriteBuilt = false;
 
+    // แยกสไปรต์เป็น 2 ชั้น
+    private BufferedImage spriteBody, spriteLegs;
+
+    // bobbing ตอนเดินเข้า (ขึ้นลงเฉพาะลำตัว)
+    private double bobY = 0;
+    private static final int BOB_AMP_PX = 8;      // ระยะโยกขึ้นลง (px)
+    private static final int BOB_PERIOD_MS = 450; // คาบเวลา (ms)
+
     private CuteFieldSceneColored  bg = new CuteFieldSceneColored ();
     private BlackBG blackBG = new BlackBG();
     private WhiteBG whiteBG = new WhiteBG();
@@ -38,8 +46,8 @@ public class Final extends JPanel implements Runnable {
 
         // ซูมอินหลังเพชรตก
     private double scale = 1.0;        // ขนาดปัจจุบัน (ปกติ = 1.0)
-    private static final double SCALE_TO = 10.00;   // ซูมถึง 130%
-    private static final int ZOOM_AFTER_MS = 2000; // เริ่มซูมหลังเข้า phase 3 มา 1 วินาที
+    private static final double SCALE_TO = 6.00;   // ซูมถึง 130%
+    private static final int ZOOM_AFTER_MS = 1500; // เริ่มซูมหลังเข้า phase 3 มา 1 วินาที
     private static final int ZOOM_DURATION_MS = 1500; // ใช้เวลาไล่ซูม 0.8 วินาที
 
     // รอ 2 วิหลังซูมเสร็จแล้วรีสตาร์ทลูป
@@ -78,9 +86,12 @@ public class Final extends JPanel implements Runnable {
     }
 
     public Final() {
-        sprite = new BufferedImage(W, H, BufferedImage.TYPE_INT_ARGB);
-        phaseStart = System.currentTimeMillis();
+    spriteBody = new BufferedImage(W, H, BufferedImage.TYPE_INT_ARGB);
+    spriteLegs = new BufferedImage(W, H, BufferedImage.TYPE_INT_ARGB);
+    sprite = spriteBody;                 // ใช้ตัวแปรเดิมให้เมทอดวาดพิกเซลทำงานได้
+    phaseStart = System.currentTimeMillis();
     }
+
 
 
 
@@ -107,9 +118,17 @@ public class Final extends JPanel implements Runnable {
             }
 
             Graphics2D g2 = (Graphics2D) g.create();
+            // ขา: เลื่อนเฉพาะแกน X
             g2.translate(offsetX, 0);
-            g2.drawImage(sprite, 0, 0, null);
+            g2.drawImage(spriteLegs, 0, 0, null);
             g2.dispose();
+
+            // ลำตัว/หัว/หาง: เลื่อน X + bob แกน Y
+            g2 = (Graphics2D) g.create();
+            g2.translate(offsetX, bobY);
+            g2.drawImage(spriteBody, 0, 0, null);
+            g2.dispose();
+
 
         } else if (phase == 1) {
             if (!spriteBuilt) {
@@ -122,28 +141,31 @@ public class Final extends JPanel implements Runnable {
             final long totalSlots = ALT_TOTAL_MS / ALT_SLOT_MS;
             long slot = elapsed / ALT_SLOT_MS;
 
-        // 1) วาดพื้นหลังสลับ
-        if (slot < totalSlots) {
-            if (slot % 2 == 0) g.drawImage(blackBG.getImage(), 0, 0, null);
-            else               g.drawImage(whiteBG.getImage(), 0, 0, null);
+            // 1) วาดพื้นหลังสลับ
+            if (slot < totalSlots) {
+                if (slot % 2 == 0) g.drawImage(blackBG.getImage(), 0, 0, null);
+                else               g.drawImage(whiteBG.getImage(), 0, 0, null);
 
-            // 2) วาดตัวละคร "หมุน" อยู่กลางเฟรม
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.translate(END_X + W/2.0, H/2.0); // ย้าย origin ไปกึ่งกลางภาพ
-            g2.rotate(angle);                   // หมุนรอบจุดกึ่งกลาง
-            g2.drawImage(sprite, -W/2, -H/2, null); // วาดให้ sprite จอดันจุดกึ่งกลางพอดี
-            g2.dispose();
-        } else {
-            phase = 2;
-            phaseStart = System.currentTimeMillis();
-            angle = 0.0; // รีเซ็ตมุมหลังจบการสลับ
-            g.drawImage(bg.getImage(), 0, 0, null);
+                // 2) วาดตัวละคร "หมุน" อยู่กลางเฟรม
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.translate(END_X + W/2.0, H/2.0);
+                g2.rotate(angle);
+                g2.drawImage(spriteLegs, -W/2, -H/2, null);
+                g2.drawImage(spriteBody, -W/2, -H/2, null);
+                g2.dispose();
 
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.translate(END_X, 0);
-            g2.drawImage(sprite, 0, 0, null);
-            g2.dispose();
-        }
+            } else {
+                phase = 2;
+                phaseStart = System.currentTimeMillis();
+                angle = 0.0; // รีเซ็ตมุมหลังจบการสลับ
+                g.drawImage(bg.getImage(), 0, 0, null);
+
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.translate(END_X, 0);
+                g2.drawImage(spriteLegs, 0, 0, null);
+                g2.drawImage(spriteBody, 0, 0, null);
+                g2.dispose();
+            }
 
         } else if (phase == 2) {
             // ------- Phase 3: ใช้ฉากใหม่ MounThun ตัวละครอยู่กลาง -------
@@ -151,7 +173,8 @@ public class Final extends JPanel implements Runnable {
             if (spriteBuilt) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.translate(END_X, 0);
-                g2.drawImage(sprite, 0, 0, null);
+                g2.drawImage(spriteLegs, 0, 0, null);
+                g2.drawImage(spriteBody, 0, 0, null);
                 g2.dispose();
             }
 
@@ -164,7 +187,8 @@ public class Final extends JPanel implements Runnable {
                 g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
                 g2.translate(END_X + W/2.0, H/2.0); // origin -> center
                 g2.scale(scale, scale);             // ใช้ค่าซูมที่คำนวณจาก run()
-                g2.drawImage(sprite, -W/2, -H/2, null);
+                g2.drawImage(spriteLegs, -W/2, -H/2, null);
+                g2.drawImage(spriteBody, -W/2, -H/2, null);
                 g2.dispose();
             }
 
@@ -203,6 +227,9 @@ public void run() {
                 phase = 1;
                 phaseStart = now;
             }
+            double walkElapsed = now - phaseStart;
+            bobY = Math.sin( (2*Math.PI/BOB_PERIOD_MS) * walkElapsed ) * BOB_AMP_PX;
+
 
         } else if (phase == 1) {
             double progress = (now - phaseStart) / (double) ALT_TOTAL_MS;
@@ -232,6 +259,7 @@ public void run() {
             if (elapsed3 < ZOOM_AFTER_MS) {
                 scale = 1.0;  // ปกติ
             } else {
+                dias.clear();
                 double p = (elapsed3 - ZOOM_AFTER_MS) / (double) ZOOM_DURATION_MS; // 0..1
                 if (p < 0) p = 0; if (p > 1) p = 1;
                 if (USE_EASING) p = easeInOut(p);
@@ -313,8 +341,8 @@ private void drawDiamond(Graphics2D g2, int cx, int cy, int s) {
     // ขนาด/ความเร็วให้เป็นแพทเทิร์นคงที่
     final int sizeRow0 = 18;
     final int sizeRow1 = 14;
-    final int vyRow0   = 140;  // px/s
-    final int vyRow1   = 110;  // px/s
+    final int vyRow0   = 370;  // px/s
+    final int vyRow1   = 310;  // px/s
 
     for (int r = 0; r < rows; r++) {
         for (int c = 0; c < cols; c++) {
@@ -330,13 +358,33 @@ private void drawDiamond(Graphics2D g2, int cx, int cy, int s) {
 }
 
 
-    /* ===== สร้างสไปรต์ตัวละคร (โปร่งใส) ===== */
+    private void clearARGB(BufferedImage img){
+        Graphics2D cg = img.createGraphics();
+        cg.setComposite(AlphaComposite.Clear);
+        cg.fillRect(0, 0, img.getWidth(), img.getHeight());
+        cg.dispose();
+    }
+
+
+    //* ===== สร้างสไปรต์ตัวละคร (โปร่งใส) ===== */
     private void buildSprite(Graphics g) {
-        // อย่าเคลียร์เป็นสีขาว! ปล่อยให้โปร่งใส (ARGB = 0)
-        drawTailDecorOnSprite();
+        // --- สร้างชั้นลำตัว/หัว/หาง (ไม่รวมขา) ---
+        sprite = spriteBody;           // ชี้ให้เมทอด setPixel เขียนลง body
+        clearARGB(spriteBody);
         headFilled();
         faceFilled();
+        drawTailDecorOnSprite();
+        // drawLeg();   // << เอาออกจากชั้นนี้
+
+        // --- สร้างชั้นขาแยกต่างหาก ---
+        sprite = spriteLegs;           // ชี้ให้ setPixel เขียนลง legs
+        clearARGB(spriteLegs);
+        drawLeg();                     // ขาอยู่ใบนี้เท่านั้น
+
+        // คืน pointer กลับไปที่ body เพื่อความปลอดภัย
+        sprite = spriteBody;
     }
+
 
     /* ====== วาดลง sprite โดยตรง: ใช้ setPixel(sprite,...) ====== */
     private void setPixel(int x, int y, int rgb) {
@@ -460,9 +508,14 @@ private void drawDiamond(Graphics2D g2, int cx, int cy, int s) {
         // มือ/ขา
         fillHandLeft(COL_BODY);
         fillHandRight(COL_BODY);
+        
+    }
+
+    private void drawLeg(){
         fillLegLeft(COL_BODY);
         fillLegRight(COL_BODY);
     }
+
 
     private void faceFilled(){
         drawCheekHairs();
@@ -511,7 +564,7 @@ private void drawDiamond(Graphics2D g2, int cx, int cy, int s) {
         pts.add(new Point(280,450));
         pts.add(new Point(250,440));
         fillPolyFromPoints(pts, rgb);
-        strokeFromPoints(pts, COL_OUT);
+        //strokeFromPoints(pts, COL_OUT);
     }
     private void fillLegRight(int rgb){
         java.util.List<Point> pts=new ArrayList<>();
@@ -521,7 +574,7 @@ private void drawDiamond(Graphics2D g2, int cx, int cy, int s) {
         pts.add(new Point(340,445));
         pts.add(new Point(310,450));
         fillPolyFromPoints(pts, rgb);
-        strokeFromPoints(pts, COL_OUT);
+        // strokeFromPoints(pts, COL_OUT);
     }
     private void drawCheekHairs(){
         drawQuadBezier(170,275,145,270,135,275, COL_OUT);
